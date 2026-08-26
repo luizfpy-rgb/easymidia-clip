@@ -82,6 +82,34 @@ export const sourceVideos = new Hono<{ Variables: AuthVariables }>()
 
     return c.json({ video: data }, 201);
   })
+  // Vídeo descoberto pela IA entra no pipeline só após confirmação de direitos (D1)
+  .post('/:id/ingest', async (c) => {
+    const parsed = manualBody.pick({ rights_confirmed: true }).safeParse(
+      await c.req.json().catch(() => null)
+    );
+    if (!parsed.success) return c.json({ error: 'rights_confirmation_required' }, 400);
+    const userId = c.get('userId');
+    const id = c.req.param('id');
+    const { data: video } = await supabaseAdmin
+      .from('source_videos')
+      .select('id, status, transcript_url')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+    if (!video) return c.json({ error: 'not_found' }, 404);
+    if (video.transcript_url || !['pending', 'failed'].includes(video.status)) {
+      return c.json({ error: 'already_ingested' }, 409);
+    }
+    await supabaseAdmin
+      .from('source_videos')
+      .update({ rights_confirmed: true, status: 'pending', error_message: null })
+      .eq('id', id);
+    await queues.transcribe.add('transcribe', {
+      userId,
+      sourceVideoId: id,
+    } satisfies TranscribeJob);
+    return c.json({ ok: true });
+  })
   .post('/:id/analyze', async (c) => {
     const userId = c.get('userId');
     const id = c.req.param('id');

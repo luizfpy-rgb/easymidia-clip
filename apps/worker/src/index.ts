@@ -33,6 +33,13 @@ const workers = [
 
 console.log(`easymidia worker up — ${workers.length} queues`);
 
+// Polling de status do Blotato a cada 3 min (não existe webhook — revisão C1)
+import('./lib/queues.js').then(({ pollBlotatoQueue }) =>
+  pollBlotatoQueue
+    .add('poll', {}, { repeat: { every: 180_000 }, jobId: 'poll-blotato-status' })
+    .catch((err) => console.error('falha ao registrar poll-blotato-status:', err))
+);
+
 async function shutdown() {
   console.log('shutting down...');
   await Promise.allSettled(workers.map((w) => w.close()));

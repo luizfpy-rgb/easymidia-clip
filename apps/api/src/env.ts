@@ -7,6 +7,11 @@ const schema = z.object({
   UPSTASH_REDIS_URL: z.string().min(1),
   PORT: z.coerce.number().default(8787),
   NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_STARTER: z.string().optional(),
+  STRIPE_PRICE_PRO: z.string().optional(),
+  STRIPE_PRICE_AGENCY: z.string().optional(),
 });
 
 export const env = schema.parse(process.env);

@@ -14,3 +14,7 @@ export const analyzeClipsQueue = new Queue(QUEUES.analyzeClips, {
   connection: enqueueConnection,
   defaultJobOptions: DEFAULT_JOB_OPTIONS,
 });
+
+export const pollBlotatoQueue = new Queue(QUEUES.pollBlotatoStatus, {
+  connection: enqueueConnection,
+});

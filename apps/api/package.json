@@ -16,9 +16,12 @@
     "bullmq": "^5.12.0",
     "hono": "^4.6.0",
     "ioredis": "^5.4.0",
+    "luxon": "^3.7.2",
+    "stripe": "^22.5.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/luxon": "^3.7.5",
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"

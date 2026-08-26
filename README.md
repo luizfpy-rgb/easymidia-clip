@@ -39,7 +39,7 @@ Vercel: importar o repo com root directory `apps/web`.
 - [x] Fase 2 — ingestão: yt-dlp (só áudio) + Groq Whisper (teste E2E pendente das chaves)
 - [x] Fase 3 — análise: claude-haiku-4-5 com structured outputs (teste E2E pendente das chaves)
 - [x] Fase 4 — render: FFmpeg split 70/30 + word timestamps→ASS + avatar (pendentes: assets do Ryu, fonte Space Grotesk no Docker, teste E2E)
-- [ ] Fase 5 — descoberta: YouTube Data API
-- [ ] Fase 6 — Blotato: publish 1-request-por-conta + polling de status
-- [ ] Fase 7 — Stripe + trial + notificações
+- [x] Fase 5 — descoberta: YouTube Data API (nichos, cache 24h, ingest com confirmação de direitos)
+- [x] Fase 6 — Blotato: connect via Vault, sync de contas, cronograma + auto-fill, publish 1-request-por-conta, polling de status (teste E2E pendente)
+- [x] Fase 7 (parcial) — Stripe checkout + webhook (falta: notificações por e-mail)
 - [ ] Fase 8 — beta fechado

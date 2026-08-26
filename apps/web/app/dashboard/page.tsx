@@ -1,9 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabaseBrowser } from '@/lib/supabase';
+import { AppShell } from '@/components/AppShell';
 import { apiFetch } from '@/lib/api';
 
 interface SourceVideo {
@@ -36,8 +35,6 @@ function fmtDuration(s: number | null) {
 }
 
 export default function Dashboard() {
-  const router = useRouter();
-  const [email, setEmail] = useState<string | null>(null);
   const [videos, setVideos] = useState<SourceVideo[]>([]);
   const [url, setUrl] = useState('');
   const [rights, setRights] = useState(false);
@@ -54,15 +51,6 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const supabase = supabaseBrowser();
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) router.replace('/login');
-      else setEmail(data.user.email ?? null);
-    });
-  }, [router]);
-
-  useEffect(() => {
-    if (!email) return;
     refresh();
     const id = setInterval(() => {
       setVideos((current) => {
@@ -71,7 +59,7 @@ export default function Dashboard() {
       });
     }, 5000);
     return () => clearInterval(id);
-  }, [email, refresh]);
+  }, [refresh]);
 
   async function addVideo(e: React.FormEvent) {
     e.preventDefault();
@@ -98,31 +86,8 @@ export default function Dashboard() {
     setBusy(false);
   }
 
-  if (!email) return null;
-
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 px-8 py-10 max-w-5xl mx-auto">
-      <header className="flex items-center justify-between mb-10">
-        <span className="font-bold text-lg tracking-tight">
-          easymidia <span className="text-violet-400">clip</span>
-        </span>
-        <div className="flex items-center gap-4 text-sm text-zinc-400">
-          <Link href="/dashboard/shorts" className="hover:text-zinc-200">
-            Bandeja de produção
-          </Link>
-          <span>{email}</span>
-          <button
-            onClick={async () => {
-              await supabaseBrowser().auth.signOut();
-              router.replace('/');
-            }}
-            className="px-3 py-1.5 rounded-md border border-zinc-800 hover:border-zinc-600"
-          >
-            Sair
-          </button>
-        </div>
-      </header>
-
+    <AppShell>
       <section className="mb-10">
         <h1 className="text-xl font-bold mb-4">Adicionar vídeo do YouTube</h1>
         <form onSubmit={addVideo} className="flex flex-col gap-3 max-w-2xl">
@@ -161,7 +126,7 @@ export default function Dashboard() {
         <h2 className="text-lg font-bold mb-4">Vídeos fonte</h2>
         {videos.length === 0 ? (
           <div className="border border-dashed border-zinc-800 rounded-lg p-10 text-center text-zinc-500 text-sm">
-            Nenhum vídeo ainda — adicione um link acima para começar.
+            Nenhum vídeo ainda — adicione um link acima ou use a Descoberta por nicho.
           </div>
         ) : (
           <ul className="flex flex-col gap-3">
@@ -172,6 +137,7 @@ export default function Dashboard() {
                   key={v.id}
                   className="flex items-center gap-4 border border-zinc-900 bg-zinc-900/40 rounded-lg px-5 py-4"
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`https://i.ytimg.com/vi/${v.youtube_id}/mqdefault.jpg`}
                     alt=""
@@ -204,6 +170,6 @@ export default function Dashboard() {
           </ul>
         )}
       </section>
-    </main>
+    </AppShell>
   );
 }
