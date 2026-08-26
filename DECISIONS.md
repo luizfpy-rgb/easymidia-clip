@@ -29,3 +29,10 @@ Não existe publicação multi-plataforma em uma chamada nem webhook. Worker
 ## D5 — Download YouTube: só áudio para transcrição, trecho em vídeo pós-aprovação (revisão C4)
 
 Cookies de conta Google descartável + PO token; fallback proxy residencial.
+
+## D6 — Uso próprio primeiro; monetização vira Fase 2 (26/ago/2026)
+
+Deploy inicial para a conta do owner com plano `internal` (migração 0005): aprova
+clips sem checar/debitar créditos e sem Stripe. Todo o billing (Stripe, trial,
+planos, ToS) fica no bloco "Fase 2 — lançamento comercial" do [BACKLOG.md](BACKLOG.md).
+O código de billing permanece no repo (rotas retornam 503 sem as chaves Stripe).

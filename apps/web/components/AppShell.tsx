@@ -69,7 +69,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-4 text-sm text-zinc-400">
           {profile && (
             <span className="px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 tabular-nums">
-              {profile.credits_remaining} créditos · {profile.plan}
+              {profile.plan === 'internal'
+                ? 'uso interno'
+                : `${profile.credits_remaining} créditos · ${profile.plan}`}
             </span>
           )}
           <button

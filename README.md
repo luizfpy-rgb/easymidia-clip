@@ -2,7 +2,10 @@
 
 SaaS de geração e publicação automatizada de Shorts com IA. Spec v1.0 + revisão v1.1
 (artifacts "Revisão easymidia clip" e "Setup easymidia clip"). Decisões registradas em
-[DECISIONS.md](DECISIONS.md).
+[DECISIONS.md](DECISIONS.md); atualizações futuras em [BACKLOG.md](BACKLOG.md).
+
+**Modo atual: uso interno** (decisão D6) — sem cobrança; após o signup, marcar a conta
+com `update public.profiles set plan = 'internal' where email = '<seu e-mail>';`
 
 ## Estrutura
 
