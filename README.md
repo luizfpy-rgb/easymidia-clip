@@ -36,7 +36,7 @@ Vercel: importar o repo com root directory `apps/web`.
 ## Fases (roadmap da spec §10)
 
 - [x] Fase 1 — infra base: monorepo, schema + RLS, esqueleto api/worker
-- [ ] Fase 2 — ingestão: yt-dlp (só áudio) + Groq Whisper
+- [x] Fase 2 — ingestão: yt-dlp (só áudio) + Groq Whisper (teste E2E pendente das chaves)
 - [ ] Fase 3 — análise: claude-haiku-4-5 com structured outputs
 - [ ] Fase 4 — render: FFmpeg split 70/30 + SRT→ASS + avatar
 - [ ] Fase 5 — descoberta: YouTube Data API

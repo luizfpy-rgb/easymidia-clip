@@ -22,11 +22,6 @@ export const discovery = new Hono<{ Variables: AuthVariables }>()
   .post('/search', notImplemented(5))
   .get('/results/:nicheId', notImplemented(5));
 
-export const sourceVideos = new Hono<{ Variables: AuthVariables }>()
-  .post('/manual', notImplemented(2))
-  .post('/:id/analyze', notImplemented(3))
-  .get('/:id/clips', notImplemented(3));
-
 export const clips = new Hono<{ Variables: AuthVariables }>()
   .get('/:id/preview', notImplemented(3))
   .post('/:id/approve', notImplemented(3))

@@ -14,7 +14,8 @@ export type SourceVideoStatus = (typeof SOURCE_VIDEO_STATUSES)[number];
 const SOURCE_VIDEO_TRANSITIONS: Record<SourceVideoStatus, SourceVideoStatus[]> = {
   pending: ['downloading', 'failed'],
   downloading: ['transcribing', 'failed'],
-  transcribing: ['analyzing', 'failed'],
+  // 'done' direto enquanto a análise (Fase 3) não está ligada no pipeline
+  transcribing: ['analyzing', 'done', 'failed'],
   analyzing: ['done', 'failed'],
   done: [],
   failed: ['pending'], // retry manual

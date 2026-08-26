@@ -12,6 +12,8 @@ const schema = z.object({
   GROQ_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   YOUTUBE_DATA_API_KEY: z.string().optional(),
+  // Cookies de conta Google descartável para o yt-dlp (revisão C4)
+  YTDLP_COOKIES_FILE: z.string().optional(),
 });
 
 // R2/APIs são opcionais na Fase 1; cada processor valida o que precisa ao ser implementado.

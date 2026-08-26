@@ -6,8 +6,9 @@ import { env } from './env.js';
 import { redis } from './lib/queues.js';
 import { requireAuth } from './middleware/auth.js';
 import {
-  accounts, niches, discovery, sourceVideos, clips, shorts, schedule, dashboard, usage,
+  accounts, niches, discovery, clips, shorts, schedule, dashboard, usage,
 } from './routes/stubs.js';
+import { sourceVideos } from './routes/source-videos.js';
 
 const app = new Hono();
 
