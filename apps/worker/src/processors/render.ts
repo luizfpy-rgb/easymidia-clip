@@ -1,9 +1,223 @@
+import { mkdtemp, rm, writeFile, readFile, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { Job } from 'bullmq';
 import type { RenderJob } from '@easymidia/shared';
+import { env } from '../env.js';
+import { supabaseAdmin } from '../lib/supabase.js';
+import { run } from '../lib/exec.js';
+import { uploadToR2 } from '../lib/r2.js';
+import { buildAss, type Word } from '../lib/ass.js';
 
-// Fase 4: yt-dlp --download-sections do trecho aprovado → SRT→ASS → FFmpeg
-// (scale=-2:1344 + crop central + vstack + subtitles=captions.ass) → thumb → R2.
-// Comando corrigido na revisão C2.
+const RENDER_COST_USD = 0.008; // estimativa Railway (spec §7.4)
+const BOTTOM_BG = '0x7C3AED';
+
+interface ExpressionEntry {
+  at_seconds: number;
+  expression: string;
+}
+
 export async function render(job: Job<RenderJob>) {
-  throw new Error(`not implemented (Fase 4) — clip ${job.data.clipId}`);
+  const { clipId, userId } = job.data;
+  try {
+    await renderInner(job);
+  } catch (err) {
+    const finalAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
+    if (finalAttempt) {
+      const message = err instanceof Error ? err.message : String(err);
+      await supabaseAdmin
+        .from('suggested_clips')
+        .update({ status: 'failed', error_message: `render: ${message.slice(0, 480)}` })
+        .eq('id', clipId)
+        .eq('user_id', userId);
+    }
+    throw err;
+  }
+}
+
+async function renderInner(job: Job<RenderJob>) {
+  const { clipId, userId } = job.data;
+
+  const { data: clip, error } = await supabaseAdmin
+    .from('suggested_clips')
+    .select(
+      'id, status, start_seconds, end_seconds, hook, caption, hashtags, expression_timeline, source_video_id, source_videos ( youtube_id )'
+    )
+    .eq('id', clipId)
+    .single();
+  if (error || !clip) throw new Error(`clip ${clipId} não encontrado`);
+  if (clip.status === 'rendered') return; // job re-entregue após sucesso
+  if (!['approved', 'rendering', 'failed'].includes(clip.status)) {
+    throw new Error(`clip em status inesperado: ${clip.status}`);
+  }
+  const video = clip.source_videos as unknown as { youtube_id: string };
+  const start = Number(clip.start_seconds);
+  const end = Number(clip.end_seconds);
+  const duration = end - start;
+
+  await supabaseAdmin
+    .from('suggested_clips')
+    .update({ status: 'rendering', error_message: null })
+    .eq('id', clipId);
+
+  const workDir = await mkdtemp(join(tmpdir(), 'em-render-'));
+  try {
+    // 1. Trecho em vídeo — só agora, pós-aprovação (revisão C4)
+    const url = `https://www.youtube.com/watch?v=${video.youtube_id}`;
+    const cookieArgs = env.YTDLP_COOKIES_FILE ? ['--cookies', env.YTDLP_COOKIES_FILE] : [];
+    await run(
+      'yt-dlp',
+      [
+        ...cookieArgs,
+        '--no-progress',
+        '-f', 'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b',
+        '--download-sections', `*${start.toFixed(2)}-${end.toFixed(2)}`,
+        '--force-keyframes-at-cuts',
+        '--merge-output-format', 'mp4',
+        '-o', 'clip.mp4',
+        url,
+      ],
+      { timeoutMs: 10 * 60_000, cwd: workDir }
+    );
+
+    // 2. Legendas ASS a partir dos word timestamps da transcrição
+    if (!env.R2_PUBLIC_URL) throw new Error('R2_PUBLIC_URL não configurada');
+    const base = env.R2_PUBLIC_URL.replace(/\/$/, '');
+    const tRes = await fetch(`${base}/users/${userId}/source/${clip.source_video_id}/transcript.json`);
+    if (!tRes.ok) throw new Error(`transcript.json indisponível (${tRes.status})`);
+    const transcription = (await tRes.json()) as { words?: Word[] };
+    const words = transcription.words ?? [];
+    await writeFile(join(workDir, 'captions.ass'), buildAss(words, start, end), 'utf8');
+
+    // 3. Avatar: baixa as expressões existentes (URLs nulas → renderiza sem avatar)
+    const { data: avatar } = await supabaseAdmin
+      .from('avatars')
+      .select('id, expressions')
+      .is('user_id', null)
+      .limit(1)
+      .single();
+    const expressions = (avatar?.expressions ?? {}) as Record<string, string | null>;
+    const timeline = ((clip.expression_timeline ?? []) as ExpressionEntry[])
+      .filter((e) => e.at_seconds >= 0 && e.at_seconds < duration)
+      .sort((a, b) => a.at_seconds - b.at_seconds);
+    if (timeline.length === 0 || timeline[0].at_seconds > 0) {
+      timeline.unshift({ at_seconds: 0, expression: 'idle' });
+    }
+
+    const windows: { file: string; from: number; to: number }[] = [];
+    const downloaded = new Map<string, string>();
+    for (let i = 0; i < timeline.length; i++) {
+      const expr = timeline[i].expression;
+      const exprUrl = expressions[expr] ?? expressions['idle'];
+      if (!exprUrl) continue;
+      let file = downloaded.get(exprUrl);
+      if (!file) {
+        const res = await fetch(exprUrl);
+        if (!res.ok) continue;
+        file = `avatar_${downloaded.size}.png`;
+        await writeFile(join(workDir, file), Buffer.from(await res.arrayBuffer()));
+        downloaded.set(exprUrl, file);
+      }
+      windows.push({
+        file,
+        from: timeline[i].at_seconds,
+        to: i + 1 < timeline.length ? timeline[i + 1].at_seconds : duration,
+      });
+    }
+
+    // 4. Composição (comando corrigido — revisão C2)
+    const inputs: string[] = ['-i', 'clip.mp4'];
+    const uniqueFiles = [...new Set(windows.map((w) => w.file))];
+    for (const f of uniqueFiles) {
+      inputs.push('-loop', '1', '-t', duration.toFixed(2), '-i', f);
+    }
+    const filters: string[] = [
+      `[0:v]scale=-2:1344,crop=1080:1344:(iw-1080)/2:0,setsar=1[top]`,
+      `color=c=${BOTTOM_BG}:s=1080x576:d=${duration.toFixed(2)}[b0]`,
+    ];
+    let bottomLabel = 'b0';
+    uniqueFiles.forEach((f, idx) => {
+      const inputIdx = idx + 1;
+      const enable = windows
+        .filter((w) => w.file === f)
+        .map((w) => `between(t,${w.from.toFixed(2)},${w.to.toFixed(2)})`)
+        .join('+');
+      filters.push(`[${inputIdx}:v]scale=520:520[av${idx}]`);
+      filters.push(
+        `[${bottomLabel}][av${idx}]overlay=(W-w)/2:(H-h)/2:enable='${enable}'[b${idx + 1}]`
+      );
+      bottomLabel = `b${idx + 1}`;
+    });
+    filters.push(`[top][${bottomLabel}]vstack=inputs=2[stacked]`);
+    filters.push(`[stacked]subtitles=captions.ass[out]`);
+
+    await run(
+      'ffmpeg',
+      [
+        '-y',
+        ...inputs,
+        '-filter_complex', filters.join(';'),
+        '-map', '[out]', '-map', '0:a',
+        '-t', duration.toFixed(2),
+        '-c:v', 'libx264', '-preset', 'fast', '-crf', '22', '-pix_fmt', 'yuv420p', '-r', '30',
+        '-c:a', 'aac', '-b:a', '128k',
+        '-movflags', '+faststart',
+        'out.mp4',
+      ],
+      { timeoutMs: 15 * 60_000, cwd: workDir }
+    );
+
+    // 5. Thumbnail: frame do meio do vídeo renderizado (legenda já queimada)
+    await run(
+      'ffmpeg',
+      ['-y', '-ss', (duration / 2).toFixed(2), '-i', 'out.mp4', '-frames:v', '1', '-q:v', '3', 'thumb.jpg'],
+      { timeoutMs: 60_000, cwd: workDir }
+    );
+
+    // 6. Upload + registros
+    const outBuffer = await readFile(join(workDir, 'out.mp4'));
+    const prefix = `users/${userId}/shorts/${clipId}`;
+    const [videoUrl, thumbUrl] = await Promise.all([
+      uploadToR2(`${prefix}/short.mp4`, outBuffer, 'video/mp4'),
+      uploadToR2(`${prefix}/thumb.jpg`, await readFile(join(workDir, 'thumb.jpg')), 'image/jpeg'),
+    ]);
+    const size = (await stat(join(workDir, 'out.mp4'))).size;
+
+    const { data: template } = await supabaseAdmin
+      .from('templates')
+      .select('id')
+      .eq('is_default', true)
+      .limit(1)
+      .single();
+
+    const { error: insertError } = await supabaseAdmin.from('rendered_shorts').insert({
+      suggested_clip_id: clipId,
+      user_id: userId,
+      template_id: template?.id ?? null,
+      avatar_id: avatar?.id ?? null,
+      video_url: videoUrl,
+      thumbnail_url: thumbUrl,
+      caption: clip.caption ?? clip.hook,
+      hashtags: clip.hashtags ?? [],
+      duration_seconds: duration,
+      size_bytes: size,
+      render_cost_usd: RENDER_COST_USD,
+    });
+    if (insertError) throw new Error(`insert rendered_shorts: ${insertError.message}`);
+
+    await supabaseAdmin.from('usage_events').insert({
+      user_id: userId,
+      event_type: 'render',
+      reference_id: clipId,
+      cost_usd: RENDER_COST_USD,
+      metadata: { duration_seconds: duration, size_bytes: size },
+    });
+
+    await supabaseAdmin
+      .from('suggested_clips')
+      .update({ status: 'rendered' })
+      .eq('id', clipId);
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
 }

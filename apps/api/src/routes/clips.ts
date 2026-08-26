@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
+import type { RenderJob } from '@easymidia/shared';
 import type { AuthVariables } from '../middleware/auth.js';
 import { supabaseAdmin } from '../lib/supabase.js';
+import { queues } from '../lib/queues.js';
 
 export const clips = new Hono<{ Variables: AuthVariables }>()
   .get('/:id/preview', async (c) => {
@@ -30,7 +32,10 @@ export const clips = new Hono<{ Variables: AuthVariables }>()
     if (data === 'not_found') return c.json({ error: 'not_found' }, 404);
     if (data === 'bad_status') return c.json({ error: 'clip_not_in_suggested_state' }, 409);
     if (data === 'no_credits') return c.json({ error: 'no_credits_remaining' }, 402);
-    // Fase 4 liga aqui: enfileirar o render do clip aprovado
+    await queues.render.add('render', {
+      userId: c.get('userId'),
+      clipId: c.req.param('id'),
+    } satisfies RenderJob);
     return c.json({ ok: true });
   })
   .post('/:id/reject', async (c) => {

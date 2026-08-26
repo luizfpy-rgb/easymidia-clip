@@ -107,6 +107,9 @@ export default function Dashboard() {
           easymidia <span className="text-violet-400">clip</span>
         </span>
         <div className="flex items-center gap-4 text-sm text-zinc-400">
+          <Link href="/dashboard/shorts" className="hover:text-zinc-200">
+            Bandeja de produção
+          </Link>
           <span>{email}</span>
           <button
             onClick={async () => {

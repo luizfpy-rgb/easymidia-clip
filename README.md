@@ -38,7 +38,7 @@ Vercel: importar o repo com root directory `apps/web`.
 - [x] Fase 1 — infra base: monorepo, schema + RLS, esqueleto api/worker
 - [x] Fase 2 — ingestão: yt-dlp (só áudio) + Groq Whisper (teste E2E pendente das chaves)
 - [x] Fase 3 — análise: claude-haiku-4-5 com structured outputs (teste E2E pendente das chaves)
-- [ ] Fase 4 — render: FFmpeg split 70/30 + SRT→ASS + avatar
+- [x] Fase 4 — render: FFmpeg split 70/30 + word timestamps→ASS + avatar (pendentes: assets do Ryu, fonte Space Grotesk no Docker, teste E2E)
 - [ ] Fase 5 — descoberta: YouTube Data API
 - [ ] Fase 6 — Blotato: publish 1-request-por-conta + polling de status
 - [ ] Fase 7 — Stripe + trial + notificações

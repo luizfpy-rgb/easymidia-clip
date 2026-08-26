@@ -22,12 +22,6 @@ export const discovery = new Hono<{ Variables: AuthVariables }>()
   .post('/search', notImplemented(5))
   .get('/results/:nicheId', notImplemented(5));
 
-export const shorts = new Hono<{ Variables: AuthVariables }>()
-  .get('/', notImplemented(4))
-  .get('/:id', notImplemented(4))
-  .post('/:id/retry', notImplemented(4))
-  .delete('/:id', notImplemented(4));
-
 export const schedule = new Hono<{ Variables: AuthVariables }>()
   .get('/prefs', notImplemented(6))
   .put('/prefs', notImplemented(6))

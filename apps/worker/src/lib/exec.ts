@@ -1,8 +1,12 @@
 import { spawn } from 'node:child_process';
 
-export function run(cmd: string, args: string[], opts: { timeoutMs?: number } = {}): Promise<string> {
+export function run(
+  cmd: string,
+  args: string[],
+  opts: { timeoutMs?: number; cwd?: string } = {}
+): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], cwd: opts.cwd });
     let stdout = '';
     let stderr = '';
     const timer = opts.timeoutMs
