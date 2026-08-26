@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { TranscribeJob } from '@easymidia/shared';
+import type { AnalyzeClipsJob, TranscribeJob } from '@easymidia/shared';
 import type { AuthVariables } from '../middleware/auth.js';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { queues } from '../lib/queues.js';
@@ -32,7 +32,7 @@ const manualBody = z.object({
   youtube_url: z.string().url(),
   // D1: usuário declara ter direitos/permissão sobre o conteúdo
   rights_confirmed: z.literal(true, {
-    errorMap: () => ({ message: 'É preciso confirmar que você tem direitos sobre o vídeo.' }),
+    error: 'É preciso confirmar que você tem direitos sobre o vídeo.',
   }),
 });
 
@@ -82,5 +82,36 @@ export const sourceVideos = new Hono<{ Variables: AuthVariables }>()
 
     return c.json({ video: data }, 201);
   })
-  .post('/:id/analyze', (c) => c.json({ error: 'not_implemented', phase: 3 }, 501))
-  .get('/:id/clips', (c) => c.json({ error: 'not_implemented', phase: 3 }, 501));
+  .post('/:id/analyze', async (c) => {
+    const userId = c.get('userId');
+    const id = c.req.param('id');
+    const { data: video } = await supabaseAdmin
+      .from('source_videos')
+      .select('id, status, transcript_url')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+    if (!video) return c.json({ error: 'not_found' }, 404);
+    if (!video.transcript_url || !['done', 'failed'].includes(video.status)) {
+      return c.json({ error: 'video_not_ready_for_analysis' }, 409);
+    }
+    await supabaseAdmin
+      .from('source_videos')
+      .update({ status: 'analyzing', error_message: null })
+      .eq('id', id);
+    await queues.analyzeClips.add('analyze', {
+      userId,
+      sourceVideoId: id,
+    } satisfies AnalyzeClipsJob);
+    return c.json({ ok: true });
+  })
+  .get('/:id/clips', async (c) => {
+    const { data, error } = await supabaseAdmin
+      .from('suggested_clips')
+      .select('id, start_seconds, end_seconds, hook, score, reason, caption, hashtags, status, created_at')
+      .eq('source_video_id', c.req.param('id'))
+      .eq('user_id', c.get('userId'))
+      .order('score', { ascending: false });
+    if (error) return c.json({ error: error.message }, 500);
+    return c.json({ clips: data });
+  });

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabase';
 import { apiFetch } from '@/lib/api';
 
@@ -186,6 +187,14 @@ export default function Dashboard() {
                   <span className={`text-xs font-semibold px-3 py-1.5 rounded-full shrink-0 ${badge.cls}`}>
                     {badge.text}
                   </span>
+                  {v.status === 'done' && (
+                    <Link
+                      href={`/dashboard/videos/${v.id}`}
+                      className="text-sm px-4 py-2 rounded-md bg-violet-600 hover:bg-violet-500 font-semibold shrink-0"
+                    >
+                      Ver trechos
+                    </Link>
+                  )}
                 </li>
               );
             })}

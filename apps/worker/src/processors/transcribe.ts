@@ -2,13 +2,14 @@ import { mkdtemp, rm, readdir, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Job } from 'bullmq';
-import type { TranscribeJob, SourceVideoStatus } from '@easymidia/shared';
+import type { AnalyzeClipsJob, TranscribeJob, SourceVideoStatus } from '@easymidia/shared';
 import { env } from '../env.js';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { run } from '../lib/exec.js';
 import { uploadToR2 } from '../lib/r2.js';
 import { transcribeAudio, GROQ_WHISPER_USD_PER_HOUR } from '../lib/groq.js';
 import { segmentsToSrt } from '../lib/srt.js';
+import { analyzeClipsQueue } from '../lib/queues.js';
 
 const MAX_DURATION_SECONDS = 3 * 3600;
 
@@ -112,8 +113,8 @@ export async function transcribe(job: Job<TranscribeJob>) {
       metadata: { seconds: Math.round(durationSeconds), model: 'whisper-large-v3-turbo' },
     });
 
-    // Fase 3 liga aqui: enfileirar analyze-clips e ir para 'analyzing'
-    await setStatus(sourceVideoId, 'done', { audio_url: audioUrl, transcript_url: srtUrl });
+    await setStatus(sourceVideoId, 'analyzing', { audio_url: audioUrl, transcript_url: srtUrl });
+    await analyzeClipsQueue.add('analyze', { userId, sourceVideoId } satisfies AnalyzeClipsJob);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const finalAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
