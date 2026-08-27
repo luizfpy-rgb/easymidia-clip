@@ -29,15 +29,28 @@ API local: http://localhost:8787/v1/health · Web: http://localhost:3000
 
 Requisitos locais do worker: yt-dlp (≥ 2026.08.19), FFmpeg e Deno no PATH.
 
-## Deploy
+## Deploy (no ar desde 27/ago/2026)
 
-Railway — dois serviços a partir deste repo, ambos com root no repositório:
+- **Vercel** (root `apps/web`) → https://www.easymidia.io
+- **Railway serviço api** (Dockerfile `apps/api/Dockerfile`, PORT=8787) → https://api.easymidia.io
+- **Railway serviço worker** (Dockerfile `apps/worker/Dockerfile`; cookies via
+  `YTDLP_COOKIES_B64`) — roda só `discover-videos,analyze-clips,publish,poll-blotato-status`
+  via `WORKER_QUEUES` (o YouTube bloqueia download em IP de datacenter — risco C4 confirmado)
 
-- **api** — Dockerfile `apps/api/Dockerfile` → api.easymidia.io
-- **worker** — Dockerfile `apps/worker/Dockerfile` (FFmpeg + yt-dlp + Deno);
-  cookies do YouTube via variável `YTDLP_COOKIES_B64`
+### Worker de downloads (roda no PC, IP residencial)
 
-Vercel: importar o repo com root directory `apps/web` → www.easymidia.io.
+Transcrição e render precisam do yt-dlp, que só funciona em IP residencial.
+Com o PC ligado, rode:
+
+```powershell
+cd C:\Users\lfval\easymidia-clip
+$env:Path += ';C:\Users\lfval\AppData\Local\Microsoft\WinGet\Packages\yt-dlp.yt-dlp_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Users\lfval\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-9.0.1-full_build\bin;C:\Users\lfval\AppData\Local\Microsoft\WinGet\Packages\DenoLand.Deno_Microsoft.Winget.Source_8wekyb3d8bbwe'
+$env:WORKER_QUEUES = 'transcribe,render'
+node --env-file=.env apps/worker/dist/index.js
+```
+
+Sem o PC ligado, vídeos ficam em fila (`pending`) até o worker subir. Autonomia
+total (proxy residencial ou PO token provider) está no [BACKLOG.md](BACKLOG.md).
 
 ## Fases (roadmap da spec §10)
 

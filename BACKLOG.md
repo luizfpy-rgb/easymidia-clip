@@ -6,14 +6,18 @@ Estado atual: Fases 1–7 da spec codadas; produto em modo **uso interno** (plan
 
 ## Agora — deploy e validação (uso próprio)
 
-- [ ] Push pro GitHub e deploy Railway (api + worker) e Vercel (web)
-- [ ] Aplicar migrações 0001–0005 no Supabase e marcar a conta do Luiz como `internal`
-- [ ] Teste E2E com vídeo real: link → transcrição → análise → aprovação → render → bandeja
+- [x] Deploy Railway (api + worker) e Vercel (web) — no ar em 27/ago/2026
+- [x] Migrações 0001–0005 aplicadas; conta do Luiz marcada como `internal`
+- [x] E2E de produção: link → download (worker local) → Groq → Claude (Railway) → render → R2
+- [x] Cookies em produção testados: **YouTube bloqueia IP de datacenter mesmo com cookies
+      válidos** (C4 confirmado) → split de filas via `WORKER_QUEUES`; downloads rodam no PC
+- [ ] Autonomia total de downloads: proxy residencial (~US$1–3/GB) OU bgutil PO token
+      provider no container do worker (elimina a dependência do PC ligado)
 - [ ] Validar payload YouTube no Blotato (`target.title`/`privacyStatus` são palpite documentado)
 - [ ] Medir consumo real de créditos Blotato por post (define planos futuros)
 - [ ] Assets: 5 PNGs do Ryu + logo easymidia (overlay do logo ainda não está no filtro)
 - [ ] Fonte Space Grotesk no Docker do worker (legendas hoje saem em DejaVu Sans)
-- [ ] Cookies yt-dlp da conta descartável em produção; testar em IP do Railway
+- [ ] Renomear serviço "refreshing-beauty" → "worker" no Railway (cosmético)
 
 ## Robustez (antes de rodar sozinho no cronograma)
 
