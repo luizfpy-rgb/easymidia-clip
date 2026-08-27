@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1B1133"/>
+      <stop offset="1" stop-color="#0F0A1E"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.45">
+      <stop offset="0" stop-color="#7C3AED" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#7C3AED" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="cutTopG">
+      <polygon points="1900,140 2560,140 2560,620 1900,860"/>
+    </clipPath>
+    <clipPath id="cutBottomG">
+      <polygon points="1900,888 2560,648 2560,1300 1900,1300"/>
+    </clipPath>
+  </defs>
+
+  <rect width="2560" height="1440" fill="url(#bg)"/>
+  <rect width="2560" height="1440" fill="url(#glow)"/>
+
+  <!-- glifo fantasma à direita (fora da área segura) -->
+  <g opacity="0.10">
+    <g clip-path="url(#cutTopG)">
+      <path d="M 2040 300 L 2040 1100 L 2520 700 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="80" stroke-linejoin="round"/>
+    </g>
+    <g clip-path="url(#cutBottomG)">
+      <path d="M 2090 350 L 2090 1150 L 2570 750 Z" fill="#A78BFA" stroke="#A78BFA" stroke-width="80" stroke-linejoin="round"/>
+    </g>
+  </g>
+
+  <!-- área segura de TV/desktop/mobile: 1546x423 centrada (507..2053 x 508..931) -->
+  <g>
+    <!-- símbolo pequeno à esquerda do wordmark -->
+    <g transform="translate(700,566) scale(0.30)">
+      <g clip-path="url(#cutTopAv)">
+        <path d="M 0 0 L 0 500 L 392 250 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="56" stroke-linejoin="round"/>
+      </g>
+      <clipPath id="cutTopAv"><polygon points="-60,-60 560,-60 560,120 -60,420"/></clipPath>
+      <clipPath id="cutBottomAv"><polygon points="-60,452 560,152 560,860 -60,860"/></clipPath>
+      <g clip-path="url(#cutBottomAv)">
+        <path d="M 34 34 L 34 534 L 426 284 Z" fill="#A78BFA" stroke="#A78BFA" stroke-width="56" stroke-linejoin="round"/>
+      </g>
+    </g>
+    <text x="920" y="702" font-family="Space Grotesk" font-weight="700" font-size="150" fill="#FFFFFF">easymidia <tspan fill="#A78BFA">clip</tspan></text>
+    <text x="1280" y="800" text-anchor="middle" font-family="Space Grotesk" font-weight="500" font-size="54" fill="#C9C2DE">Shorts com IA, publicados no automático</text>
+    <rect x="1180" y="848" width="200" height="6" rx="3" fill="#7C3AED"/>
+    <text x="1280" y="912" text-anchor="middle" font-family="Space Grotesk" font-weight="500" font-size="42" fill="#8F87A8">www.easymidia.io</text>
+  </g>
+</svg>

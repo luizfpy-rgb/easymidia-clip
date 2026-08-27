@@ -1,4 +1,5 @@
-import { mkdtemp, mkdir, copyFile, rm, writeFile, readFile, stat } from 'node:fs/promises';
+import { mkdtemp, mkdir, copyFile, rm, writeFile, readFile, readdir, stat } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,7 +19,9 @@ const RENDER_COST_USD = 0.008; // estimativa Railway (spec §7.4)
 const CANVAS_BG = '0x1A1327';
 const ACCENT = '0x7C3AED';
 const VIDEO_Y = 520; // vídeo 1080x608 ocupa y 520-1128
-const FONTS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets', 'fonts');
+const ASSETS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets');
+const FONTS_DIR = join(ASSETS_DIR, 'fonts');
+const LOGO_PATH = join(ASSETS_DIR, 'brand', 'wordmark.png');
 
 function shortHook(hook: string): string {
   const firstSentence = hook.match(/^.{10,100}?[.!?]/)?.[0];
@@ -106,9 +109,11 @@ async function renderInner(job: Job<RenderJob>) {
       buildAss(words, start, end, shortHook(clip.hook)),
       'utf8'
     );
-    // Fonte junto do .ass: fontsdir relativo evita escaping de caminho no filtro
+    // Fontes junto do .ass: fontsdir relativo evita escaping de caminho no filtro
     await mkdir(join(workDir, 'fonts'), { recursive: true });
-    await copyFile(join(FONTS_DIR, 'SpaceGrotesk.ttf'), join(workDir, 'fonts', 'SpaceGrotesk.ttf'));
+    for (const f of await readdir(FONTS_DIR)) {
+      if (f.endsWith('.ttf')) await copyFile(join(FONTS_DIR, f), join(workDir, 'fonts', f));
+    }
 
     // 3. Avatar: baixa as expressões existentes (URLs nulas → renderiza sem avatar)
     const { data: avatar } = await supabaseAdmin
@@ -169,6 +174,15 @@ async function renderInner(job: Job<RenderJob>) {
       filters.push(`[${chain}][av${idx}]overlay=790:1560:enable='${enable}'[c${idx + 2}]`);
       chain = `c${idx + 2}`;
     });
+    // Marca d'água: wordmark discreto acima da barra roxa
+    if (existsSync(LOGO_PATH)) {
+      await copyFile(LOGO_PATH, join(workDir, 'logo.png'));
+      inputs.push('-loop', '1', '-t', duration.toFixed(2), '-i', 'logo.png');
+      const logoIdx = uniqueFiles.length + 1;
+      filters.push(`[${logoIdx}:v]scale=300:-1,format=rgba,colorchannelmixer=aa=0.55[logo]`);
+      filters.push(`[${chain}][logo]overlay=40:1758[clogo]`);
+      chain = 'clogo';
+    }
     filters.push(`[${chain}]subtitles=captions.ass:fontsdir=fonts[out]`);
 
     await run(

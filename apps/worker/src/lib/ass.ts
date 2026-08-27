@@ -82,7 +82,7 @@ ScaledBorderAndShadow: yes
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Hook,${o.fontName},${o.hookSize},&H00FFFFFF,&H00FFFFFF,&H00201434,&H7F000000,-1,0,0,0,100,100,0,0,1,4,0,2,70,70,1460,1
-Style: Caption,${o.fontName},${o.captionSize},&H00FFFFFF,&H00B08CFF,&H00140C24,&H7F000000,-1,0,0,0,100,100,0,0,1,5,1,8,60,60,1120,1
+Style: Caption,${o.fontName},${o.captionSize},&H00FFFFFF,&H00FA8BA7,&H00140C24,&H7F000000,-1,0,0,0,100,100,0,0,1,5,1,8,60,60,1120,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2B1B52"/>
+      <stop offset="1" stop-color="#120C22"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.46" r="0.55">
+      <stop offset="0" stop-color="#7C3AED" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#7C3AED" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="cutTop">
+      <polygon points="0,0 1024,0 1024,330 0,700"/>
+    </clipPath>
+    <clipPath id="cutBottom">
+      <polygon points="0,742 1024,372 1024,1024 0,1024"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+
+  <!-- play "clip": triângulo fatiado, pedaço inferior desliza -->
+  <g clip-path="url(#cutTop)">
+    <path d="M 350 262 L 350 762 L 742 512 Z" fill="#FFFFFF"
+          stroke="#FFFFFF" stroke-width="56" stroke-linejoin="round"/>
+  </g>
+  <g clip-path="url(#cutBottom)">
+    <path d="M 384 296 L 384 796 L 776 546 Z" fill="#A78BFA"
+          stroke="#A78BFA" stroke-width="56" stroke-linejoin="round"/>
+  </g>
+</svg>
