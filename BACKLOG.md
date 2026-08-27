@@ -15,8 +15,8 @@ Estado atual: Fases 1–7 da spec codadas; produto em modo **uso interno** (plan
 - [ ] Autonomia total de downloads: proxy residencial (~US$1–3/GB) OU bgutil PO token
       provider no container do worker (elimina a dependência do PC ligado)
 - [ ] Medir consumo real de créditos Blotato por post (define planos futuros)
-- [ ] Renomear serviço "refreshing-beauty" → "worker" no Railway (cosmético)
-- [ ] Acrescentar `cleanup-r2` ao `WORKER_QUEUES` do worker Railway (1 min, junto do deploy)
+- [x] Serviço Railway renomeado "refreshing-beauty" → "worker" — 27/ago
+- [x] `cleanup-r2` no `WORKER_QUEUES` do Railway (worker up com 5 filas, confirmado no log) — 27/ago
 
 ## Identidade visual
 
