@@ -133,6 +133,33 @@ export const sourceVideos = new Hono<{ Variables: AuthVariables }>()
     } satisfies AnalyzeClipsJob);
     return c.json({ ok: true });
   })
+  // Retry de vídeo que falhou: recomeça da etapa certa (transcrição ou análise)
+  .post('/:id/retry', async (c) => {
+    const userId = c.get('userId');
+    const id = c.req.param('id');
+    const { data: video } = await supabaseAdmin
+      .from('source_videos')
+      .select('id, status, transcript_url')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+    if (!video) return c.json({ error: 'not_found' }, 404);
+    if (video.status !== 'failed') return c.json({ error: 'video_not_failed' }, 409);
+    if (video.transcript_url) {
+      await supabaseAdmin
+        .from('source_videos')
+        .update({ status: 'analyzing', error_message: null })
+        .eq('id', id);
+      await queues.analyzeClips.add('analyze', { userId, sourceVideoId: id } satisfies AnalyzeClipsJob);
+    } else {
+      await supabaseAdmin
+        .from('source_videos')
+        .update({ status: 'pending', error_message: null })
+        .eq('id', id);
+      await queues.transcribe.add('transcribe', { userId, sourceVideoId: id } satisfies TranscribeJob);
+    }
+    return c.json({ ok: true });
+  })
   .get('/:id/clips', async (c) => {
     const { data, error } = await supabaseAdmin
       .from('suggested_clips')

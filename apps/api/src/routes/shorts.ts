@@ -10,6 +10,7 @@ export const shorts = new Hono<{ Variables: AuthVariables }>()
       .from('rendered_shorts')
       .select('id, suggested_clip_id, video_url, thumbnail_url, caption, hashtags, duration_seconds, size_bytes, created_at')
       .eq('user_id', c.get('userId'))
+      .is('expired_at', null) // cleanup-r2 já apagou os arquivos destes
       .order('created_at', { ascending: false })
       .limit(100);
     if (error) return c.json({ error: error.message }, 500);

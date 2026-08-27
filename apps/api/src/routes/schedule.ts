@@ -163,6 +163,34 @@ export const schedule = new Hono<{ Variables: AuthVariables }>()
     } satisfies PublishJob);
     return c.json({ ok: true });
   })
+  // Retry de slot que falhou (na fila ou no próprio Blotato). Reseta o post_id
+  // pra forçar novo request; horário no passado é empurrado pra daqui a 5 min.
+  .post('/slots/:id/retry', async (c) => {
+    const userId = c.get('userId');
+    const { data: slot } = await supabaseAdmin
+      .from('schedule_slots')
+      .select('id, scheduled_at')
+      .eq('id', c.req.param('id'))
+      .eq('user_id', userId)
+      .eq('status', 'failed')
+      .single();
+    if (!slot) return c.json({ error: 'not_found_or_not_failed' }, 409);
+    const at = new Date(slot.scheduled_at as string);
+    const minFuture = new Date(Date.now() + 5 * 60_000);
+    const { error } = await supabaseAdmin
+      .from('schedule_slots')
+      .update({
+        status: 'scheduled',
+        approved: true,
+        error_message: null,
+        blotato_post_id: null,
+        scheduled_at: (at < minFuture ? minFuture : at).toISOString(),
+      })
+      .eq('id', slot.id);
+    if (error) return c.json({ error: error.message }, 500);
+    await queues.publish.add('publish', { userId, scheduleSlotId: slot.id } satisfies PublishJob);
+    return c.json({ ok: true });
+  })
   .post('/slots/:id/reschedule', async (c) => {
     const parsed = z
       .object({ new_date: z.string() })
