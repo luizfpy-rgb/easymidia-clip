@@ -8,3 +8,4 @@ dist/
 .DS_Store
 cookies.txt
 assets-local/
+deploy-env/

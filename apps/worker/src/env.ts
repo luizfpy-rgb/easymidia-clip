@@ -1,3 +1,6 @@
+import { writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -14,7 +17,15 @@ const schema = z.object({
   YOUTUBE_DATA_API_KEY: z.string().optional(),
   // Cookies de conta Google descartável para o yt-dlp (revisão C4)
   YTDLP_COOKIES_FILE: z.string().optional(),
+  // Alternativa pra deploy (Railway): conteúdo do cookies.txt em base64
+  YTDLP_COOKIES_B64: z.string().optional(),
 });
 
 // R2/APIs são opcionais na Fase 1; cada processor valida o que precisa ao ser implementado.
-export const env = schema.parse(process.env);
+const parsed = schema.parse(process.env);
+if (!parsed.YTDLP_COOKIES_FILE && parsed.YTDLP_COOKIES_B64) {
+  const path = join(tmpdir(), 'em-cookies.txt');
+  writeFileSync(path, Buffer.from(parsed.YTDLP_COOKIES_B64, 'base64'));
+  parsed.YTDLP_COOKIES_FILE = path;
+}
+export const env = parsed;
