@@ -31,6 +31,15 @@ Estado atual: Fases 1–7 da spec codadas; produto em modo **uso interno** (plan
 - [ ] Logo overlay no render (depende do logo em PNG)
 - [ ] Thumbnail do short com texto do hook (hoje é só o frame central)
 
+## Qualidade dos cortes (template v1.1 corrigiu o pior; próximos passos)
+
+- [ ] URL versionada no re-render (Cloudflare cacheia o mp4 antigo no mesmo path —
+      hoje re-render exige cache-buster; incluir timestamp no nome do arquivo)
+- [ ] Crop inteligente com detecção de rosto (zoom no falante como Opus Clip) — hoje
+      o vídeo vai inteiro, que é seguro mas menos imersivo
+- [ ] Legenda: evitar linhas terminando em conectivo ("E", "DE") no agrupamento
+- [ ] Corte por frase completa: alinhar início/fim do clip a fronteiras de sentença
+
 ## Robustez (antes de rodar sozinho no cronograma)
 
 - [ ] Notificação de falha (e-mail ou Telegram) quando transcribe/render/publish falhar de vez
