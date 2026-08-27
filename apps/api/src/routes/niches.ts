@@ -9,6 +9,8 @@ const nicheBody = z.object({
   name: z.string().min(2).max(80),
   keywords: z.array(z.string().min(2).max(60)).min(1).max(10),
   language: z.string().default('pt-BR'),
+  // ISO 3166-1 alpha-2 — vira regionCode na busca do YouTube
+  region: z.string().regex(/^[A-Z]{2}$/).default('BR'),
   min_views: z.coerce.number().int().min(1000).default(100000),
   max_age_days: z.coerce.number().int().min(1).max(365).default(30),
 });
@@ -17,7 +19,7 @@ export const niches = new Hono<{ Variables: AuthVariables }>()
   .get('/', async (c) => {
     const { data, error } = await supabaseAdmin
       .from('niches')
-      .select('id, name, keywords, language, min_views, max_age_days, last_discovery_at, created_at')
+      .select('id, name, keywords, language, region, min_views, max_age_days, last_discovery_at, created_at')
       .eq('user_id', c.get('userId'))
       .order('created_at');
     if (error) return c.json({ error: error.message }, 500);

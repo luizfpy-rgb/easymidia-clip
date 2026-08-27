@@ -8,6 +8,7 @@ interface Niche {
   id: string;
   name: string;
   keywords: string[];
+  region: string | null;
   min_views: number;
   last_discovery_at: string | null;
 }
@@ -23,6 +24,22 @@ interface DiscoveredVideo {
   rights_confirmed: boolean;
 }
 
+// País da busca (regionCode) + língua de relevância correspondente
+const COUNTRIES = [
+  { code: 'BR', lang: 'pt', label: '🇧🇷 Brasil' },
+  { code: 'PT', lang: 'pt', label: '🇵🇹 Portugal' },
+  { code: 'US', lang: 'en', label: '🇺🇸 Estados Unidos' },
+  { code: 'GB', lang: 'en', label: '🇬🇧 Reino Unido' },
+  { code: 'ES', lang: 'es', label: '🇪🇸 Espanha' },
+  { code: 'MX', lang: 'es', label: '🇲🇽 México' },
+  { code: 'AR', lang: 'es', label: '🇦🇷 Argentina' },
+  { code: 'FR', lang: 'fr', label: '🇫🇷 França' },
+  { code: 'DE', lang: 'de', label: '🇩🇪 Alemanha' },
+  { code: 'IT', lang: 'it', label: '🇮🇹 Itália' },
+  { code: 'JP', lang: 'ja', label: '🇯🇵 Japão' },
+  { code: 'RU', lang: 'ru', label: '🇷🇺 Rússia' },
+];
+
 export default function Niches() {
   const [niches, setNiches] = useState<Niche[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -30,6 +47,7 @@ export default function Niches() {
   const [name, setName] = useState('');
   const [keywords, setKeywords] = useState('');
   const [minViews, setMinViews] = useState('100000');
+  const [region, setRegion] = useState('BR');
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -57,12 +75,15 @@ export default function Niches() {
     setBusy(true);
     setMessage(null);
     try {
+      const country = COUNTRIES.find((c) => c.code === region) ?? COUNTRIES[0];
       await apiFetch('/v1/niches', {
         method: 'POST',
         body: JSON.stringify({
           name,
           keywords: keywords.split(',').map((k) => k.trim()).filter(Boolean),
           min_views: Number(minViews),
+          region: country.code,
+          language: country.lang,
         }),
       });
       setName('');
@@ -145,6 +166,18 @@ export default function Niches() {
             title="Views mínimas"
             className="w-32 px-4 py-3 rounded-md bg-ink-2 border border-edge focus:border-violet-500 outline-none tabular-nums"
           />
+          <select
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+            title="País de origem dos vídeos (busca do YouTube)"
+            className="px-4 py-3 rounded-md bg-ink-2 border border-edge focus:border-violet-500 outline-none"
+          >
+            {COUNTRIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.label}
+              </option>
+            ))}
+          </select>
           <button
             type="submit"
             disabled={busy}
@@ -153,6 +186,9 @@ export default function Niches() {
             Criar nicho
           </button>
         </div>
+        <p className="text-xs text-mist/60">
+          O país define onde a busca acontece (região + idioma de relevância do YouTube).
+        </p>
       </form>
 
       {message && <p className="text-sm text-amber-400 mb-4">{message}</p>}
@@ -169,6 +205,7 @@ export default function Niches() {
               }`}
             >
               {n.name}
+              {n.region && <span className="ml-2 text-xs text-mist/60">{n.region}</span>}
             </button>
             <button
               onClick={() => search(n.id)}

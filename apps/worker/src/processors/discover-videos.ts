@@ -26,7 +26,7 @@ export async function discoverVideos(job: Job<DiscoverVideosJob>) {
 
   const { data: niche, error } = await supabaseAdmin
     .from('niches')
-    .select('id, keywords, language, min_views, max_age_days')
+    .select('id, keywords, language, region, min_views, max_age_days')
     .eq('id', nicheId)
     .single();
   if (error || !niche) throw new Error(`niche ${nicheId} não encontrado`);
@@ -44,7 +44,9 @@ export async function discoverVideos(job: Job<DiscoverVideosJob>) {
       videoDuration: 'medium',
       order: 'viewCount',
       publishedAfter,
-      regionCode: 'BR',
+      // Proxy de "país de origem": o YouTube não filtra por origem de verdade —
+      // regionCode+relevanceLanguage devolvem o que é relevante naquele país/língua
+      regionCode: niche.region ?? 'BR',
       relevanceLanguage: lang,
       maxResults: '25',
     });
