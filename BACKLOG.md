@@ -71,7 +71,9 @@ Estado atual: Fases 1–7 da spec codadas; produto em modo **uso interno** (plan
 - [ ] Avatar animado com lipsync (RunPod/ComfyUI)
 - [ ] Geração de voz IA
 - [ ] Editor visual de trechos (ajustar in/out points antes de renderizar)
-- [ ] Analytics pós-publicação (views/likes por plataforma, melhor horário real)
+- [x] Analytics pós-publicação (página Métricas: views/likes/comentários/alcance por
+      post e totais por rede, via Blotato analytics) — 27/ago. Falta só "melhor horário
+      real" (precisa de histórico acumulado)
 - [ ] Templates visuais adicionais (hoje só o v1.1 Full-frame)
 - [ ] Avatares customizados por usuário (upload das expressões)
 - [ ] Publicação direta sem Blotato (OAuth próprio por plataforma)
