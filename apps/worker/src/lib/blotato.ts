@@ -51,6 +51,16 @@ export async function createPost(apiKey: string, input: CreatePostInput): Promis
     target.privacyStatus = 'public';
     target.shouldNotifySubscribers = true;
   }
+  if (input.platform === 'tiktok') {
+    // Campos obrigatórios validados contra a API real em 27/ago/2026
+    target.privacyLevel = 'PUBLIC_TO_EVERYONE';
+    target.disabledComments = false;
+    target.disabledDuet = false;
+    target.disabledStitch = false;
+    target.isBrandedContent = false;
+    target.isYourBrand = false;
+    target.isAiGenerated = true;
+  }
   const body = {
     post: {
       accountId: input.accountId,
