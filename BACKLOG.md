@@ -19,6 +19,18 @@ Estado atual: Fases 1–7 da spec codadas; produto em modo **uso interno** (plan
 - [ ] Fonte Space Grotesk no Docker do worker (legendas hoje saem em DejaVu Sans)
 - [ ] Renomear serviço "refreshing-beauty" → "worker" no Railway (cosmético)
 
+## Identidade visual (o app está funcional mas sem marca)
+
+- [ ] Logo/wordmark easymidia clip (SVG) + favicon do app (hoje é o padrão do Next.js)
+- [ ] Paleta e tipografia próprias no app (hoje: zinc/violet genérico do Tailwind)
+- [ ] Landing page real: seções de como funciona, exemplos de shorts, prova social
+- [ ] Open Graph/meta tags (preview ao compartilhar www.easymidia.io fica sem imagem)
+- [ ] Template de e-mail do Supabase com a marca (confirmação de conta hoje é o padrão deles)
+- [ ] Fonte Space Grotesk nas legendas dos shorts (hoje DejaVu Sans) — instalar no Docker + local
+- [ ] Avatar Ryu: 5 PNGs de expressão (gerar com Midjourney/DALL-E ou designer — precisa do Luiz)
+- [ ] Logo overlay no render (depende do logo em PNG)
+- [ ] Thumbnail do short com texto do hook (hoje é só o frame central)
+
 ## Robustez (antes de rodar sozinho no cronograma)
 
 - [ ] Notificação de falha (e-mail ou Telegram) quando transcribe/render/publish falhar de vez
