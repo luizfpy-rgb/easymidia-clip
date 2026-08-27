@@ -40,6 +40,18 @@ function escapeAss(text: string): string {
   return text.replace(/\\/g, '\\\\').replace(/\{/g, '(').replace(/\}/g, ')').replace(/\n/g, ' ');
 }
 
+// Linha de legenda não pode terminar em conectivo solto ("GANHEI MAIS DE" → o
+// "DE" desce pra linha seguinte). Lista conservadora: preposições/artigos/conjunções.
+const CONNECTIVES = new Set([
+  'e', 'de', 'do', 'da', 'dos', 'das', 'que', 'pra', 'pro', 'para', 'por', 'com',
+  'sem', 'um', 'uma', 'o', 'a', 'os', 'as', 'no', 'na', 'nos', 'nas', 'em', 'ao',
+  'aos', 'à', 'às', 'pelo', 'pela', 'mas', 'ou', 'nem', 'se', 'como',
+]);
+
+function isConnective(word: string): boolean {
+  return CONNECTIVES.has(word.trim().toLowerCase().replace(/[.,!?…:;]+$/, ''));
+}
+
 export function buildAss(
   words: Word[],
   clipStart: number,
@@ -66,8 +78,17 @@ export function buildAss(
   for (const w of inClip) {
     current.push(w);
     const span = current[current.length - 1].end - current[0].start;
-    if (current.length >= o.maxWordsPerLine || span >= o.maxLineSeconds || /[.!?]$/.test(w.word.trim())) {
+    const sentenceEnd = /[.!?]$/.test(w.word.trim());
+    if (current.length >= o.maxWordsPerLine || span >= o.maxLineSeconds || sentenceEnd) {
+      // Conectivo no fim da linha passa pra próxima (mantém pelo menos 1 palavra)
+      const held: Word[] = [];
+      if (!sentenceEnd) {
+        while (current.length > 1 && isConnective(current[current.length - 1].word)) {
+          held.unshift(current.pop() as Word);
+        }
+      }
       flush();
+      current = held;
     }
   }
   flush();
