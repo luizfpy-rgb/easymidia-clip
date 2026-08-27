@@ -18,6 +18,7 @@ const NAV = [
   { href: '/dashboard/niches', label: 'Descoberta' },
   { href: '/dashboard/shorts', label: 'Bandeja' },
   { href: '/dashboard/schedule', label: 'Cronograma' },
+  { href: '/dashboard/analytics', label: 'Métricas' },
   { href: '/dashboard/contas', label: 'Contas' },
 ];
 

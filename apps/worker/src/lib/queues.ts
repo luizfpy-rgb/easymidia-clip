@@ -22,3 +22,7 @@ export const pollBlotatoQueue = new Queue(QUEUES.pollBlotatoStatus, {
 export const cleanupR2Queue = new Queue(QUEUES.cleanupR2, {
   connection: enqueueConnection,
 });
+
+export const collectMetricsQueue = new Queue(QUEUES.collectMetrics, {
+  connection: enqueueConnection,
+});

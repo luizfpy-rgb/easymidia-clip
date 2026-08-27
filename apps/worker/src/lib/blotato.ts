@@ -93,6 +93,24 @@ export async function getPostStatus(apiKey: string, postSubmissionId: string): P
   return request<PostStatus>(apiKey, `/posts/${postSubmissionId}`);
 }
 
+export interface AnalyticsItem {
+  id: string;
+  postUrl?: string;
+  platform?: string;
+  latestMetrics?: {
+    fetchedAt?: string;
+    metrics?: Record<string, string | number | undefined>;
+  };
+}
+
+/** Top posts com métricas (GET /v2/analytics — cobre as 8 plataformas).
+ *  limit máximo da API é 100; ordenação padrão por views. */
+export async function fetchAnalytics(apiKey: string, sinceIso: string): Promise<AnalyticsItem[]> {
+  const params = new URLSearchParams({ since: sinceIso, limit: '100' });
+  const res = await request<{ items?: AnalyticsItem[] }>(apiKey, `/analytics?${params}`);
+  return res.items ?? [];
+}
+
 export interface BlotatoAccount {
   id: string;
   platform?: string;

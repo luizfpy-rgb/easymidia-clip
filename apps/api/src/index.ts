@@ -13,6 +13,7 @@ import { niches, discovery } from './routes/niches.js';
 import { schedule } from './routes/schedule.js';
 import { billing, stripeWebhook } from './routes/billing.js';
 import { me, dashboard, usage } from './routes/dashboard.js';
+import { analytics } from './routes/analytics.js';
 
 const app = new Hono();
 
@@ -40,6 +41,7 @@ v1.route('/shorts', shorts);
 v1.route('/schedule', schedule);
 v1.route('/billing', billing);
 v1.route('/dashboard', dashboard);
+v1.route('/analytics', analytics);
 v1.route('/usage', usage);
 app.route('/v1', v1);
 

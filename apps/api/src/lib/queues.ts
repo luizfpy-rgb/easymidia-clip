@@ -18,4 +18,5 @@ export const queues = {
   analyzeClips: makeQueue(QUEUES.analyzeClips),
   render: makeQueue(QUEUES.render),
   publish: makeQueue(QUEUES.publish),
+  collectMetrics: makeQueue(QUEUES.collectMetrics),
 };
