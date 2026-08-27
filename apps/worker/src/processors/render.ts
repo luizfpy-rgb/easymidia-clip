@@ -1,6 +1,7 @@
-import { mkdtemp, rm, writeFile, readFile, stat } from 'node:fs/promises';
+import { mkdtemp, mkdir, copyFile, rm, writeFile, readFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Job } from 'bullmq';
 import type { RenderJob } from '@easymidia/shared';
 import { env } from '../env.js';
@@ -10,7 +11,20 @@ import { uploadToR2 } from '../lib/r2.js';
 import { buildAss, type Word } from '../lib/ass.js';
 
 const RENDER_COST_USD = 0.008; // estimativa Railway (spec §7.4)
-const BOTTOM_BG = '0x7C3AED';
+
+// Template v1.1 "Full-frame": vídeo 16:9 inteiro (sem crop), gancho no topo,
+// legendas em zona própria, barra roxa embaixo. Substitui o split 70/30 que
+// cortava 55% da largura da imagem.
+const CANVAS_BG = '0x1A1327';
+const ACCENT = '0x7C3AED';
+const VIDEO_Y = 520; // vídeo 1080x608 ocupa y 520-1128
+const FONTS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets', 'fonts');
+
+function shortHook(hook: string): string {
+  const firstSentence = hook.match(/^.{10,100}?[.!?]/)?.[0];
+  if (firstSentence) return firstSentence;
+  return hook.length <= 100 ? hook : hook.slice(0, 97).trimEnd() + '…';
+}
 
 interface ExpressionEntry {
   at_seconds: number;
@@ -87,7 +101,14 @@ async function renderInner(job: Job<RenderJob>) {
     if (!tRes.ok) throw new Error(`transcript.json indisponível (${tRes.status})`);
     const transcription = (await tRes.json()) as { words?: Word[] };
     const words = transcription.words ?? [];
-    await writeFile(join(workDir, 'captions.ass'), buildAss(words, start, end), 'utf8');
+    await writeFile(
+      join(workDir, 'captions.ass'),
+      buildAss(words, start, end, shortHook(clip.hook)),
+      'utf8'
+    );
+    // Fonte junto do .ass: fontsdir relativo evita escaping de caminho no filtro
+    await mkdir(join(workDir, 'fonts'), { recursive: true });
+    await copyFile(join(FONTS_DIR, 'SpaceGrotesk.ttf'), join(workDir, 'fonts', 'SpaceGrotesk.ttf'));
 
     // 3. Avatar: baixa as expressões existentes (URLs nulas → renderiza sem avatar)
     const { data: avatar } = await supabaseAdmin
@@ -125,31 +146,30 @@ async function renderInner(job: Job<RenderJob>) {
       });
     }
 
-    // 4. Composição (comando corrigido — revisão C2)
+    // 4. Composição — template v1.1 Full-frame
     const inputs: string[] = ['-i', 'clip.mp4'];
     const uniqueFiles = [...new Set(windows.map((w) => w.file))];
     for (const f of uniqueFiles) {
       inputs.push('-loop', '1', '-t', duration.toFixed(2), '-i', f);
     }
     const filters: string[] = [
-      `[0:v]scale=-2:1344,crop=1080:1344:(iw-1080)/2:0,setsar=1[top]`,
-      `color=c=${BOTTOM_BG}:s=1080x576:d=${duration.toFixed(2)}[b0]`,
+      `color=c=${CANVAS_BG}:s=1080x1920:d=${duration.toFixed(2)}:r=30[bg]`,
+      `[0:v]scale=1080:-2,setsar=1[vid]`,
+      `[bg][vid]overlay=0:${VIDEO_Y}[c0]`,
+      `[c0]drawbox=x=0:y=1848:w=1080:h=72:color=${ACCENT}:t=fill[c1]`,
     ];
-    let bottomLabel = 'b0';
+    let chain = 'c1';
     uniqueFiles.forEach((f, idx) => {
       const inputIdx = idx + 1;
       const enable = windows
         .filter((w) => w.file === f)
         .map((w) => `between(t,${w.from.toFixed(2)},${w.to.toFixed(2)})`)
         .join('+');
-      filters.push(`[${inputIdx}:v]scale=520:520[av${idx}]`);
-      filters.push(
-        `[${bottomLabel}][av${idx}]overlay=(W-w)/2:(H-h)/2:enable='${enable}'[b${idx + 1}]`
-      );
-      bottomLabel = `b${idx + 1}`;
+      filters.push(`[${inputIdx}:v]scale=260:260[av${idx}]`);
+      filters.push(`[${chain}][av${idx}]overlay=790:1560:enable='${enable}'[c${idx + 2}]`);
+      chain = `c${idx + 2}`;
     });
-    filters.push(`[top][${bottomLabel}]vstack=inputs=2[stacked]`);
-    filters.push(`[stacked]subtitles=captions.ass[out]`);
+    filters.push(`[${chain}]subtitles=captions.ass:fontsdir=fonts[out]`);
 
     await run(
       'ffmpeg',

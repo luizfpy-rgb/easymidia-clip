@@ -1,5 +1,8 @@
-// Gera legendas ASS (libass) no estilo Shorts a partir dos word timestamps da Groq.
-// Substitui o drawtext concatenado da spec original (revisão C2).
+// Legendas ASS (libass) do template v1.1 "Full-frame":
+// - gancho fixo no topo (zona 90-380)
+// - vídeo SEM corte no meio do canvas (1080x608 @ y=420)
+// - legendas em zona própria abaixo do vídeo (y~1120), karaokê palavra-a-palavra
+// Substitui o crop 70/30 que cortava 55% da imagem e o drawtext frágil (revisão C2).
 
 export interface Word {
   word: string;
@@ -9,18 +12,18 @@ export interface Word {
 
 interface AssOptions {
   fontName: string;
-  fontSize: number;
-  marginV: number; // distância do topo, em px do canvas 1080x1920
+  captionSize: number;
+  hookSize: number;
   maxWordsPerLine: number;
   maxLineSeconds: number;
 }
 
 const DEFAULTS: AssOptions = {
-  fontName: 'DejaVu Sans',
-  fontSize: 72,
-  marginV: 200,
-  maxWordsPerLine: 4,
-  maxLineSeconds: 1.8,
+  fontName: 'Space Grotesk',
+  captionSize: 80,
+  hookSize: 58,
+  maxWordsPerLine: 3,
+  maxLineSeconds: 1.6,
 };
 
 function assTime(seconds: number): string {
@@ -37,27 +40,26 @@ function escapeAss(text: string): string {
   return text.replace(/\\/g, '\\\\').replace(/\{/g, '(').replace(/\}/g, ')').replace(/\n/g, ' ');
 }
 
-/**
- * words: timestamps globais do vídeo fonte; clipStart/clipEnd delimitam o trecho.
- * Os tempos saem relativos ao início do clip (o vídeo renderizado começa em 0).
- */
 export function buildAss(
   words: Word[],
   clipStart: number,
   clipEnd: number,
+  hook?: string,
   opts: Partial<AssOptions> = {}
 ): string {
   const o = { ...DEFAULTS, ...opts };
+  const duration = clipEnd - clipStart;
   const inClip = words.filter((w) => w.start >= clipStart - 0.2 && w.end <= clipEnd + 0.5);
 
-  const lines: { start: number; end: number; text: string }[] = [];
+  // Agrupa em linhas curtas (1 linha na tela, karaokê dentro dela)
+  const lines: { start: number; end: number; words: Word[] }[] = [];
   let current: Word[] = [];
   const flush = () => {
     if (current.length === 0) return;
     lines.push({
       start: Math.max(0, current[0].start - clipStart),
       end: Math.max(0.1, current[current.length - 1].end - clipStart),
-      text: escapeAss(current.map((w) => w.word.trim()).join(' ')).toUpperCase(),
+      words: current,
     });
     current = [];
   };
@@ -74,20 +76,36 @@ export function buildAss(
 ScriptType: v4.00+
 PlayResX: 1080
 PlayResY: 1920
-WrapStyle: 2
+WrapStyle: 0
 ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Caption,${o.fontName},${o.fontSize},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,6,0,8,60,60,${o.marginV},1
+Style: Hook,${o.fontName},${o.hookSize},&H00FFFFFF,&H00FFFFFF,&H00201434,&H7F000000,-1,0,0,0,100,100,0,0,1,4,0,2,70,70,1460,1
+Style: Caption,${o.fontName},${o.captionSize},&H00FFFFFF,&H00B08CFF,&H00140C24,&H7F000000,-1,0,0,0,100,100,0,0,1,5,1,8,60,60,1120,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 `;
 
-  const events = lines
-    .map((l) => `Dialogue: 0,${assTime(l.start)},${assTime(l.end)},Caption,,0,0,0,,${l.text}`)
-    .join('\n');
+  const events: string[] = [];
+  if (hook) {
+    events.push(
+      `Dialogue: 0,${assTime(0)},${assTime(duration)},Hook,,0,0,0,,${escapeAss(hook.toUpperCase())}`
+    );
+  }
+  for (const line of lines) {
+    // Karaokê: \k em centissegundos por palavra (Primary preenche sobre Secondary)
+    const parts = line.words.map((w, i) => {
+      const next = line.words[i + 1];
+      const end = next ? Math.max(w.end, Math.min(next.start, w.end + 0.5)) : w.end;
+      const cs = Math.max(8, Math.round((end - w.start) * 100));
+      return `{\\k${cs}}${escapeAss(w.word.trim().toUpperCase())}`;
+    });
+    events.push(
+      `Dialogue: 0,${assTime(line.start)},${assTime(line.end)},Caption,,0,0,0,,${parts.join(' ')}`
+    );
+  }
 
-  return header + events + '\n';
+  return header + events.join('\n') + '\n';
 }
