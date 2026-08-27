@@ -18,3 +18,7 @@ export const analyzeClipsQueue = new Queue(QUEUES.analyzeClips, {
 export const pollBlotatoQueue = new Queue(QUEUES.pollBlotatoStatus, {
   connection: enqueueConnection,
 });
+
+export const cleanupR2Queue = new Queue(QUEUES.cleanupR2, {
+  connection: enqueueConnection,
+});

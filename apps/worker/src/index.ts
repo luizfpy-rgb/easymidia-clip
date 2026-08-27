@@ -8,6 +8,7 @@ import { analyzeClips } from './processors/analyze-clips.js';
 import { render } from './processors/render.js';
 import { publish } from './processors/publish.js';
 import { pollBlotatoStatus } from './processors/poll-blotato-status.js';
+import { cleanupR2 } from './processors/cleanup-r2.js';
 
 const connection = new Redis(env.UPSTASH_REDIS_URL, {
   maxRetriesPerRequest: null,
@@ -37,6 +38,7 @@ const workers = [
   wants(QUEUES.analyzeClips) && start(QUEUES.analyzeClips, analyzeClips, { concurrency: 3 }),
   wants(QUEUES.publish) && start(QUEUES.publish, publish, { limiter: PUBLISH_LIMITER }),
   wants(QUEUES.pollBlotatoStatus) && start(QUEUES.pollBlotatoStatus, pollBlotatoStatus),
+  wants(QUEUES.cleanupR2) && start(QUEUES.cleanupR2, cleanupR2),
 ].filter((w): w is Worker => Boolean(w));
 
 console.log(
@@ -44,11 +46,15 @@ console.log(
 );
 
 // Polling de status do Blotato a cada 3 min (não existe webhook — revisão C1)
-import('./lib/queues.js').then(({ pollBlotatoQueue }) =>
+// + limpeza diária do R2 (shorts publicados há +30d e áudio de transcrição)
+import('./lib/queues.js').then(({ pollBlotatoQueue, cleanupR2Queue }) => {
   pollBlotatoQueue
     .add('poll', {}, { repeat: { every: 180_000 }, jobId: 'poll-blotato-status' })
-    .catch((err) => console.error('falha ao registrar poll-blotato-status:', err))
-);
+    .catch((err) => console.error('falha ao registrar poll-blotato-status:', err));
+  cleanupR2Queue
+    .add('cleanup', {}, { repeat: { every: 24 * 3600_000 }, jobId: 'cleanup-r2' })
+    .catch((err) => console.error('falha ao registrar cleanup-r2:', err));
+});
 
 async function shutdown() {
   console.log('shutting down...');

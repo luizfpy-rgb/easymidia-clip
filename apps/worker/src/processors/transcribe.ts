@@ -10,6 +10,7 @@ import { uploadToR2 } from '../lib/r2.js';
 import { transcribeAudio, GROQ_WHISPER_USD_PER_HOUR } from '../lib/groq.js';
 import { segmentsToSrt } from '../lib/srt.js';
 import { analyzeClipsQueue } from '../lib/queues.js';
+import { notifyFailure, cookieHint } from '../lib/notify.js';
 
 const MAX_DURATION_SECONDS = 3 * 3600;
 
@@ -120,6 +121,10 @@ export async function transcribe(job: Job<TranscribeJob>) {
     const finalAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
     if (finalAttempt) {
       await setStatus(sourceVideoId, 'failed', { error_message: message.slice(0, 500) }).catch(() => {});
+      await notifyFailure(
+        'transcrição falhou de vez',
+        `Vídeo ${video.youtube_id} (${sourceVideoId})\n${message.slice(0, 600)}${cookieHint(message)}`
+      );
     }
     throw err;
   } finally {

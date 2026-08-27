@@ -6,6 +6,7 @@ import { env } from '../env.js';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { anthropic, CLAUDE_MODEL, HAIKU_USD_PER_M_INPUT, HAIKU_USD_PER_M_OUTPUT } from '../lib/claude.js';
 import type { TranscriptSegment } from '../lib/srt.js';
+import { notifyFailure } from '../lib/notify.js';
 
 const EXPRESSIONS = ['idle', 'curious', 'impressed', 'approved', 'analytical'] as const;
 
@@ -47,6 +48,39 @@ function transcriptForPrompt(segments: TranscriptSegment[]): string {
     .join('\n');
 }
 
+// O modelo às vezes devolve timestamps no meio de uma frase. Encosta início/fim
+// na fronteira de segmento mais próxima (tolerância 4s); fim ganha 0.3s de folga
+// pra não decepar a última palavra. Se o snap estourar 15-90s, mantém o original.
+const SNAP_TOLERANCE = 4;
+function snapToSegments(
+  start: number,
+  end: number,
+  segments: TranscriptSegment[],
+  videoDuration: number
+): { start: number; end: number } {
+  let bestStart = start;
+  let d = SNAP_TOLERANCE;
+  for (const s of segments) {
+    const diff = Math.abs(s.start - start);
+    if (diff < d) {
+      d = diff;
+      bestStart = s.start;
+    }
+  }
+  let bestEnd = end;
+  d = SNAP_TOLERANCE;
+  for (const s of segments) {
+    const diff = Math.abs(s.end - end);
+    if (diff < d) {
+      d = diff;
+      bestEnd = Math.min(s.end + 0.3, videoDuration);
+    }
+  }
+  const len = bestEnd - bestStart;
+  if (len >= 15 && len <= 90) return { start: bestStart, end: bestEnd };
+  return { start, end };
+}
+
 export async function analyzeClips(job: Job<AnalyzeClipsJob>) {
   try {
     await analyzeClipsInner(job);
@@ -58,6 +92,10 @@ export async function analyzeClips(job: Job<AnalyzeClipsJob>) {
         .from('source_videos')
         .update({ status: 'failed', error_message: `análise: ${message.slice(0, 480)}` })
         .eq('id', job.data.sourceVideoId);
+      await notifyFailure(
+        'análise de trechos falhou de vez',
+        `Vídeo ${job.data.sourceVideoId}\n${message.slice(0, 600)}`
+      );
     }
     throw err;
   }
@@ -113,11 +151,12 @@ Retorne os 5 melhores trechos.`;
   const clips = parsed.clips
     .filter((c) => c.end_seconds > c.start_seconds && c.end_seconds <= duration + 2)
     .filter((c) => c.end_seconds - c.start_seconds >= 15 && c.end_seconds - c.start_seconds <= 90)
+    .map((c) => ({ ...c, ...snapToSegments(c.start_seconds, c.end_seconds, segments, duration) }))
     .map((c) => ({
       user_id: userId,
       source_video_id: sourceVideoId,
-      start_seconds: c.start_seconds,
-      end_seconds: c.end_seconds,
+      start_seconds: c.start,
+      end_seconds: c.end,
       hook: c.hook,
       score: Math.max(0, Math.min(100, c.score)),
       reason: c.reason,

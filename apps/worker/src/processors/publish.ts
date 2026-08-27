@@ -2,6 +2,7 @@ import type { Job } from 'bullmq';
 import type { PublishJob } from '@easymidia/shared';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { getBlotatoKey, uploadMedia, createPost } from '../lib/blotato.js';
+import { notifyFailure } from '../lib/notify.js';
 
 // 1 slot = 1 conta = 1 request Blotato (revisão C1). O agendamento em si fica com o
 // Blotato (scheduledTime); o poll-blotato-status acompanha até published/failed.
@@ -17,6 +18,10 @@ export async function publish(job: Job<PublishJob>) {
         .from('schedule_slots')
         .update({ status: 'failed', error_message: message.slice(0, 480) })
         .eq('id', scheduleSlotId);
+      await notifyFailure(
+        'publicação falhou de vez',
+        `Slot ${scheduleSlotId}\n${message.slice(0, 600)}`
+      );
     }
     throw err;
   }

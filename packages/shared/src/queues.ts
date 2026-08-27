@@ -5,6 +5,7 @@ export const QUEUES = {
   render: 'render',
   publish: 'publish',
   pollBlotatoStatus: 'poll-blotato-status',
+  cleanupR2: 'cleanup-r2',
 } as const;
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 

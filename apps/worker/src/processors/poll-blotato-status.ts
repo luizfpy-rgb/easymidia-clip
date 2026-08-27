@@ -1,6 +1,7 @@
 import type { Job } from 'bullmq';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { getBlotatoKey, getPostStatus } from '../lib/blotato.js';
+import { notifyFailure } from '../lib/notify.js';
 
 // Repeatable (3 min) — Blotato não tem webhook (revisão C1).
 // Consulta slots em 'publishing' e fecha o ciclo published/failed.
@@ -42,10 +43,12 @@ export async function pollBlotatoStatus(_job: Job) {
         }
         updated++;
       } else if (status.status === 'failed') {
+        const reason = (status.errorMessage ?? 'falha no Blotato').slice(0, 480);
         await supabaseAdmin
           .from('schedule_slots')
-          .update({ status: 'failed', error_message: (status.errorMessage ?? 'falha no Blotato').slice(0, 480) })
+          .update({ status: 'failed', error_message: reason })
           .eq('id', slot.id);
+        await notifyFailure('post falhou no Blotato', `Slot ${slot.id}\n${reason}`);
         updated++;
       }
       // in-progress / scheduled: mantém e checa de novo no próximo ciclo

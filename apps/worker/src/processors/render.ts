@@ -10,6 +10,7 @@ import { supabaseAdmin } from '../lib/supabase.js';
 import { run } from '../lib/exec.js';
 import { uploadToR2 } from '../lib/r2.js';
 import { buildAss, type Word } from '../lib/ass.js';
+import { notifyFailure, cookieHint } from '../lib/notify.js';
 
 const RENDER_COST_USD = 0.008; // estimativa Railway (spec §7.4)
 
@@ -47,6 +48,10 @@ export async function render(job: Job<RenderJob>) {
         .update({ status: 'failed', error_message: `render: ${message.slice(0, 480)}` })
         .eq('id', clipId)
         .eq('user_id', userId);
+      await notifyFailure(
+        'render falhou de vez',
+        `Clip ${clipId}\n${message.slice(0, 600)}${cookieHint(message)}`
+      );
     }
     throw err;
   }
@@ -208,12 +213,14 @@ async function renderInner(job: Job<RenderJob>) {
       { timeoutMs: 60_000, cwd: workDir }
     );
 
-    // 6. Upload + registros
+    // 6. Upload + registros. Nome versionado por render: a CDN da Cloudflare
+    // cacheia por URL, então re-render no mesmo path serviria o mp4 antigo.
     const outBuffer = await readFile(join(workDir, 'out.mp4'));
+    const version = Date.now();
     const prefix = `users/${userId}/shorts/${clipId}`;
     const [videoUrl, thumbUrl] = await Promise.all([
-      uploadToR2(`${prefix}/short.mp4`, outBuffer, 'video/mp4'),
-      uploadToR2(`${prefix}/thumb.jpg`, await readFile(join(workDir, 'thumb.jpg')), 'image/jpeg'),
+      uploadToR2(`${prefix}/short-${version}.mp4`, outBuffer, 'video/mp4'),
+      uploadToR2(`${prefix}/thumb-${version}.jpg`, await readFile(join(workDir, 'thumb.jpg')), 'image/jpeg'),
     ]);
     const size = (await stat(join(workDir, 'out.mp4'))).size;
 

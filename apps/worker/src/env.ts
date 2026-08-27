@@ -22,6 +22,9 @@ const schema = z.object({
   // CSV de filas que este worker consome (vazio = todas). Permite split:
   // downloads (transcribe,render) em IP residencial; resto no Railway (C4).
   WORKER_QUEUES: z.string().optional(),
+  // Alerta de falha definitiva via Telegram (opcional — sem as duas vars, só loga)
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_CHAT_ID: z.string().optional(),
 });
 
 // R2/APIs são opcionais na Fase 1; cada processor valida o que precisa ao ser implementado.
