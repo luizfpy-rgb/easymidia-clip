@@ -8,7 +8,7 @@ export const shorts = new Hono<{ Variables: AuthVariables }>()
   .get('/', async (c) => {
     const { data, error } = await supabaseAdmin
       .from('rendered_shorts')
-      .select('id, suggested_clip_id, video_url, thumbnail_url, caption, hashtags, duration_seconds, size_bytes, created_at')
+      .select('id, suggested_clip_id, video_url, thumbnail_url, caption, hashtags, duration_seconds, size_bytes, created_at, schedule_slots ( id, status )')
       .eq('user_id', c.get('userId'))
       .is('expired_at', null) // cleanup-r2 já apagou os arquivos destes
       .order('created_at', { ascending: false })

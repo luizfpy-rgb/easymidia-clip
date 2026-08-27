@@ -22,7 +22,133 @@ const DEFAULT_PREFS = {
   timezone: 'America/Sao_Paulo',
 };
 
+// Próximos horários LIVRES do cronograma do usuário (prefs + colisão com slots
+// futuros já criados), varrendo até 60 dias à frente.
+async function nextFreeSlotTimes(userId: string, count: number): Promise<DateTime[]> {
+  const { data: prefsRow } = await supabaseAdmin
+    .from('user_schedule_prefs')
+    .select('posts_per_day, active_days, time_slots, timezone')
+    .eq('user_id', userId)
+    .maybeSingle();
+  const prefs = prefsRow ?? DEFAULT_PREFS;
+
+  const { data: existing } = await supabaseAdmin
+    .from('schedule_slots')
+    .select('scheduled_at')
+    .eq('user_id', userId)
+    .in('status', ['scheduled', 'publishing'])
+    .gte('scheduled_at', new Date().toISOString());
+  const occupied = new Set((existing ?? []).map((s) => new Date(s.scheduled_at as string).getTime()));
+
+  const zone = prefs.timezone;
+  const now = DateTime.now();
+  const times: DateTime[] = [];
+  for (let day = DateTime.now().setZone(zone).startOf('day'); times.length < count; day = day.plus({ days: 1 })) {
+    if (day.diffNow('days').days > 60) break;
+    const weekday = WEEKDAYS[day.weekday - 1];
+    if (!prefs.active_days.includes(weekday)) continue;
+    const slots = [...prefs.time_slots].sort().slice(0, prefs.posts_per_day);
+    for (const t of slots) {
+      if (times.length >= count) break;
+      const [h, m] = String(t).split(':').map(Number);
+      const at = day.set({ hour: h, minute: m, second: 0, millisecond: 0 });
+      if (at > now.plus({ minutes: 10 }) && !occupied.has(at.toMillis())) times.push(at);
+    }
+  }
+  return times;
+}
+
+const bulkBody = z.object({
+  short_ids: z.array(z.string().uuid()).min(1).max(50),
+  mode: z.enum(['now', 'schedule']),
+});
+
 export const schedule = new Hono<{ Variables: AuthVariables }>()
+  // Bandeja → publicar em lote: mode 'now' cria slots já aprovados pra ~2min e
+  // enfileira o publish; mode 'schedule' distribui nos próximos horários livres
+  // (aprovação continua no Cronograma). Short que já tem slot ativo é pulado.
+  .post('/bulk-publish', async (c) => {
+    const parsed = bulkBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: 'invalid_body' }, 400);
+    const userId = c.get('userId');
+    const { short_ids, mode } = parsed.data;
+
+    const { data: accounts } = await supabaseAdmin
+      .from('connected_accounts')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('active', true);
+    if (!accounts || accounts.length === 0) return c.json({ error: 'no_active_accounts' }, 409);
+
+    const { data: shorts } = await supabaseAdmin
+      .from('rendered_shorts')
+      .select('id, suggested_clip_id, schedule_slots ( id, status )')
+      .eq('user_id', userId)
+      .in('id', short_ids)
+      .is('expired_at', null);
+    const eligible = (shorts ?? []).filter((s) => {
+      const slots = (s.schedule_slots ?? []) as { status: string }[];
+      return !slots.some((slot) => slot.status !== 'failed');
+    });
+    if (eligible.length === 0) {
+      return c.json({ scheduled: 0, skipped: short_ids.length, slots_created: 0 });
+    }
+
+    let times: DateTime[];
+    if (mode === 'now') {
+      const at = DateTime.now().plus({ minutes: 2 });
+      times = eligible.map(() => at);
+    } else {
+      times = await nextFreeSlotTimes(userId, eligible.length);
+      if (times.length === 0) return c.json({ error: 'no_free_slots_in_60_days' }, 409);
+    }
+
+    const rows: object[] = [];
+    const scheduledShorts: { shortId: string; clipId: string }[] = [];
+    eligible.forEach((short, i) => {
+      if (i >= times.length) return;
+      const at = times[i].toUTC().toISO();
+      for (const account of accounts) {
+        rows.push({
+          user_id: userId,
+          rendered_short_id: short.id,
+          connected_account_id: account.id,
+          scheduled_at: at,
+          status: 'scheduled',
+          approved: mode === 'now',
+        });
+      }
+      scheduledShorts.push({ shortId: short.id, clipId: short.suggested_clip_id });
+    });
+
+    const { data: created, error } = await supabaseAdmin
+      .from('schedule_slots')
+      .insert(rows)
+      .select('id');
+    if (error) return c.json({ error: error.message }, 500);
+
+    await supabaseAdmin
+      .from('suggested_clips')
+      .update({ status: 'scheduled' })
+      .in('id', scheduledShorts.map((s) => s.clipId))
+      .eq('status', 'rendered');
+
+    if (mode === 'now') {
+      for (const slot of created ?? []) {
+        await queues.publish.add('publish', {
+          userId,
+          scheduleSlotId: slot.id,
+        } satisfies PublishJob);
+      }
+    }
+
+    return c.json({
+      scheduled: scheduledShorts.length,
+      skipped: short_ids.length - scheduledShorts.length,
+      slots_created: rows.length,
+      mode,
+    });
+  })
   .get('/prefs', async (c) => {
     const { data } = await supabaseAdmin
       .from('user_schedule_prefs')
