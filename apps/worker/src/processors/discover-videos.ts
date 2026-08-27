@@ -6,7 +6,9 @@ import { supabaseAdmin } from '../lib/supabase.js';
 const SEARCH_URL = 'https://www.googleapis.com/youtube/v3/search';
 const VIDEOS_URL = 'https://www.googleapis.com/youtube/v3/videos';
 const MAX_KEYWORDS_PER_RUN = 3; // search.list = 100 units cada (quota 10k/dia)
-const MIN_DURATION = 5 * 60;
+// videoDuration=medium (4-20min) no search: sem isso, order=viewCount devolve
+// só Shorts de <1min e o filtro local zera tudo
+const MIN_DURATION = 4 * 60;
 const MAX_DURATION = 60 * 60;
 
 function parseIsoDuration(iso: string): number {
@@ -39,6 +41,7 @@ export async function discoverVideos(job: Job<DiscoverVideosJob>) {
       part: 'id',
       q: keyword,
       type: 'video',
+      videoDuration: 'medium',
       order: 'viewCount',
       publishedAfter,
       regionCode: 'BR',
@@ -101,6 +104,13 @@ export async function discoverVideos(job: Job<DiscoverVideosJob>) {
       v.duration_seconds >= MIN_DURATION &&
       v.duration_seconds <= MAX_DURATION
   );
+
+  // Trava de quota (24h) só é gravada quando a busca COMPLETA — job que falha
+  // pode ser re-disparado na hora. Contador vai pra UI avisar busca vazia.
+  await supabaseAdmin
+    .from('niches')
+    .update({ last_discovery_at: new Date().toISOString(), last_discovery_count: filtered.length })
+    .eq('id', nicheId);
   if (filtered.length === 0) return { discovered: 0 };
 
   // Descobertos NÃO entram no pipeline automaticamente: transcrição só após o

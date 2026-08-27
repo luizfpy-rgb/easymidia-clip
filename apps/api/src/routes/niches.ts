@@ -69,24 +69,26 @@ export const discovery = new Hono<{ Variables: AuthVariables }>()
 
     const { data: niche } = await supabaseAdmin
       .from('niches')
-      .select('id, last_discovery_at')
+      .select('id, last_discovery_at, last_discovery_count')
       .eq('id', parsed.data.niche_id)
       .eq('user_id', userId)
       .single();
     if (!niche) return c.json({ error: 'not_found' }, 404);
 
-    // Cache 24h — protege a quota do YouTube (spec §12)
+    // Cache 24h — protege a quota do YouTube (spec §12). Gravado pelo worker ao
+    // COMPLETAR; busca que falhou não trava. Busca vazia libera retry em 1h.
     if (niche.last_discovery_at) {
       const ageMs = Date.now() - new Date(niche.last_discovery_at).getTime();
-      if (ageMs < 24 * 3600_000) {
-        return c.json({ cached: true, next_search_in_hours: Math.ceil(24 - ageMs / 3600_000) });
+      const lockMs = (niche.last_discovery_count ?? 0) > 0 ? 24 * 3600_000 : 3600_000;
+      if (ageMs < lockMs) {
+        return c.json({
+          cached: true,
+          last_count: niche.last_discovery_count ?? 0,
+          next_search_in_hours: Math.max(1, Math.ceil((lockMs - ageMs) / 3600_000)),
+        });
       }
     }
 
-    await supabaseAdmin
-      .from('niches')
-      .update({ last_discovery_at: new Date().toISOString() })
-      .eq('id', niche.id);
     await queues.discoverVideos.add('discover', {
       userId,
       nicheId: niche.id,

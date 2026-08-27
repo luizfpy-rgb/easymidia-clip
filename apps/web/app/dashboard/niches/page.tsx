@@ -83,10 +83,15 @@ export default function Niches() {
       });
       setSelected(nicheId);
       if (res.cached) {
-        setMessage(`Busca recente — nova busca liberada em ~${res.next_search_in_hours}h. Mostrando resultados existentes.`);
+        setMessage(
+          res.last_count === 0
+            ? `A última busca não encontrou nenhum vídeo com esses filtros — tente outras palavras-chave ou reduza as views mínimas. Nova tentativa em ~${res.next_search_in_hours}h.`
+            : `Busca recente (${res.last_count} vídeo(s)) — nova busca liberada em ~${res.next_search_in_hours}h. Mostrando resultados existentes.`
+        );
       } else {
         setMessage('Busca iniciada — os resultados aparecem aqui em ~1 minuto.');
         setTimeout(() => loadResults(nicheId).catch(() => {}), 20_000);
+        setTimeout(() => loadResults(nicheId).catch(() => {}), 45_000);
       }
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Erro inesperado');
