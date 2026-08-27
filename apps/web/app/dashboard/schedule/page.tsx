@@ -27,7 +27,7 @@ const DAY_LABEL: Record<string, string> = {
 };
 
 const SLOT_STATUS: Record<string, { text: string; cls: string }> = {
-  scheduled: { text: 'Agendado', cls: 'bg-zinc-800 text-zinc-300' },
+  scheduled: { text: 'Agendado', cls: 'bg-white/10 text-mist' },
   publishing: { text: 'No Blotato', cls: 'bg-sky-950 text-sky-300' },
   published: { text: 'Publicado', cls: 'bg-emerald-950 text-emerald-300' },
   failed: { text: 'Falhou', cls: 'bg-red-950 text-red-300' },
@@ -99,11 +99,13 @@ export default function Schedule() {
     setBusy(false);
   }
 
-  async function act(slotId: string, action: 'approve' | 'delete') {
+  async function act(slotId: string, action: 'approve' | 'delete' | 'retry') {
     setBusy(true);
     try {
       if (action === 'approve') {
         await apiFetch(`/v1/schedule/slots/${slotId}/approve`, { method: 'POST' });
+      } else if (action === 'retry') {
+        await apiFetch(`/v1/schedule/slots/${slotId}/retry`, { method: 'POST' });
       } else {
         await apiFetch(`/v1/schedule/slots/${slotId}`, { method: 'DELETE' });
       }
@@ -121,7 +123,7 @@ export default function Schedule() {
       {prefs && (
         <form onSubmit={savePrefs} className="mb-10 max-w-2xl flex flex-col gap-4">
           <div className="flex gap-4 flex-wrap items-end">
-            <label className="text-sm text-zinc-400">
+            <label className="text-sm text-mist">
               Posts por dia
               <input
                 type="number"
@@ -129,21 +131,21 @@ export default function Schedule() {
                 max={10}
                 value={prefs.posts_per_day}
                 onChange={(e) => setPrefs({ ...prefs, posts_per_day: Number(e.target.value) })}
-                className="block mt-1 w-24 px-3 py-2 rounded-md bg-zinc-900 border border-zinc-800 outline-none tabular-nums"
+                className="block mt-1 w-24 px-3 py-2 rounded-md bg-ink-2 border border-edge outline-none tabular-nums"
               />
             </label>
-            <label className="text-sm text-zinc-400 flex-1 min-w-56">
+            <label className="text-sm text-mist flex-1 min-w-56">
               Horários (HH:MM, separados por vírgula)
               <input
                 value={timeSlotsText}
                 onChange={(e) => setTimeSlotsText(e.target.value)}
-                className="block mt-1 w-full px-3 py-2 rounded-md bg-zinc-900 border border-zinc-800 outline-none"
+                className="block mt-1 w-full px-3 py-2 rounded-md bg-ink-2 border border-edge outline-none"
               />
             </label>
             <button
               type="submit"
               disabled={busy}
-              className="px-5 py-2.5 rounded-md border border-zinc-700 hover:border-zinc-500 disabled:opacity-40 text-sm font-semibold"
+              className="px-5 py-2.5 rounded-md border border-edge hover:border-mist/50 disabled:opacity-40 text-sm font-semibold"
             >
               Salvar
             </button>
@@ -164,7 +166,7 @@ export default function Schedule() {
                 className={`px-3 py-1.5 rounded-md text-sm border ${
                   prefs.active_days.includes(key)
                     ? 'border-violet-500 text-violet-300 bg-violet-950/40'
-                    : 'border-zinc-800 text-zinc-500'
+                    : 'border-edge text-mist/60'
                 }`}
               >
                 {label}
@@ -175,24 +177,24 @@ export default function Schedule() {
       )}
 
       <form onSubmit={autoFill} className="mb-10 flex gap-3 items-end flex-wrap">
-        <label className="text-sm text-zinc-400">
+        <label className="text-sm text-mist">
           De
           <input
             type="date"
             required
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="block mt-1 px-3 py-2 rounded-md bg-zinc-900 border border-zinc-800 outline-none"
+            className="block mt-1 px-3 py-2 rounded-md bg-ink-2 border border-edge outline-none"
           />
         </label>
-        <label className="text-sm text-zinc-400">
+        <label className="text-sm text-mist">
           Até
           <input
             type="date"
             required
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="block mt-1 px-3 py-2 rounded-md bg-zinc-900 border border-zinc-800 outline-none"
+            className="block mt-1 px-3 py-2 rounded-md bg-ink-2 border border-edge outline-none"
           />
         </label>
         <button
@@ -208,15 +210,15 @@ export default function Schedule() {
 
       <h2 className="text-lg font-bold mb-4">Próximos posts</h2>
       {slots.length === 0 ? (
-        <p className="text-sm text-zinc-500">Nada agendado ainda.</p>
+        <p className="text-sm text-mist/60">Nada agendado ainda.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {slots.map((s) => {
-            const badge = SLOT_STATUS[s.status] ?? { text: s.status, cls: 'bg-zinc-800 text-zinc-300' };
+            const badge = SLOT_STATUS[s.status] ?? { text: s.status, cls: 'bg-white/10 text-mist' };
             return (
               <li
                 key={s.id}
-                className="flex items-center gap-4 border border-zinc-900 bg-zinc-900/40 rounded-lg px-5 py-3"
+                className="flex items-center gap-4 border border-edge/60 bg-ink-2/60 rounded-lg px-5 py-3"
               >
                 {s.rendered_shorts && (
                   /* eslint-disable-next-line @next/next/no-img-element */
@@ -224,7 +226,7 @@ export default function Schedule() {
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="text-sm truncate">{s.rendered_shorts?.caption ?? '—'}</p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-mist/60">
                     {new Date(s.scheduled_at).toLocaleString('pt-BR')} ·{' '}
                     <span className="capitalize">{s.connected_accounts?.platform}</span>{' '}
                     {s.connected_accounts?.handle}
@@ -257,14 +259,23 @@ export default function Schedule() {
                     <button
                       onClick={() => act(s.id, 'delete')}
                       disabled={busy}
-                      className="text-sm px-3 py-1.5 rounded-md border border-zinc-800 hover:border-red-900 hover:text-red-300 shrink-0"
+                      className="text-sm px-3 py-1.5 rounded-md border border-edge hover:border-red-900 hover:text-red-300 shrink-0"
                     >
                       Cancelar
                     </button>
                   </>
                 )}
                 {s.status === 'scheduled' && s.approved && (
-                  <span className="text-xs text-zinc-500 shrink-0">enviando…</span>
+                  <span className="text-xs text-mist/60 shrink-0">enviando…</span>
+                )}
+                {s.status === 'failed' && (
+                  <button
+                    onClick={() => act(s.id, 'retry')}
+                    disabled={busy}
+                    className="text-sm px-4 py-1.5 rounded-md border border-edge hover:border-violet-500 disabled:opacity-40 font-semibold shrink-0"
+                  >
+                    Tentar de novo
+                  </button>
                 )}
               </li>
             );

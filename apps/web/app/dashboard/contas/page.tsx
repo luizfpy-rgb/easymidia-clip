@@ -71,7 +71,7 @@ export default function Contas() {
   return (
     <AppShell>
       <h1 className="text-xl font-bold mb-2">Contas de publicação</h1>
-      <p className="text-sm text-zinc-500 mb-8 max-w-2xl">
+      <p className="text-sm text-mist/60 mb-8 max-w-2xl">
         Conecte sua conta do Blotato (a partir de US$ 29/mês, blotato.com) e as redes que você
         já ligou lá aparecem aqui. Sua chave fica criptografada no cofre — nunca é exibida de
         volta.
@@ -85,7 +85,7 @@ export default function Contas() {
             placeholder="Cole sua API key do Blotato (Settings → API)"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            className="flex-1 px-4 py-3 rounded-md bg-zinc-900 border border-zinc-800 focus:border-violet-500 outline-none"
+            className="flex-1 px-4 py-3 rounded-md bg-ink-2 border border-edge focus:border-violet-500 outline-none"
           />
           <button
             type="submit"
@@ -103,7 +103,7 @@ export default function Contas() {
           <button
             onClick={sync}
             disabled={busy}
-            className="text-sm px-4 py-2 rounded-md border border-zinc-800 hover:border-zinc-600 disabled:opacity-40"
+            className="text-sm px-4 py-2 rounded-md border border-edge hover:border-mist/50 disabled:opacity-40"
           >
             Sincronizar contas
           </button>
@@ -116,26 +116,26 @@ export default function Contas() {
         {accounts.map((a) => (
           <li
             key={a.id}
-            className="flex items-center justify-between border border-zinc-900 bg-zinc-900/40 rounded-lg px-5 py-3"
+            className="flex items-center justify-between border border-edge/60 bg-ink-2/60 rounded-lg px-5 py-3"
           >
             <div>
               <span className="font-medium capitalize">{a.platform}</span>
-              <span className="text-zinc-500 ml-3">{a.handle}</span>
+              <span className="text-mist/60 ml-3">{a.handle}</span>
             </div>
             {a.active ? (
               <button
                 onClick={() => deactivate(a.id)}
-                className="text-sm text-zinc-500 hover:text-red-300"
+                className="text-sm text-mist/60 hover:text-red-300"
               >
                 Desativar
               </button>
             ) : (
-              <span className="text-xs text-zinc-600">inativa</span>
+              <span className="text-xs text-mist/50">inativa</span>
             )}
           </li>
         ))}
         {connected && accounts.length === 0 && (
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-mist/60">
             Nenhuma conta sincronizada — conecte suas redes no painel do Blotato e clique em
             Sincronizar.
           </p>

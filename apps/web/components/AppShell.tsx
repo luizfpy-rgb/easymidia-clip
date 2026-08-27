@@ -44,10 +44,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!authed) return null;
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 px-8 py-8 max-w-5xl mx-auto">
+    <main className="min-h-screen bg-ink text-white px-8 py-8 max-w-5xl mx-auto">
       <header className="flex items-center justify-between mb-8 flex-wrap gap-3">
         <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="font-bold text-lg tracking-tight">
+          <Link href="/dashboard" className="flex items-center gap-2.5 font-bold text-lg tracking-tight">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icon.png" alt="" className="w-7 h-7 rounded-md" />
             easymidia <span className="text-violet-400">clip</span>
           </Link>
           <nav className="flex gap-4 text-sm">
@@ -58,7 +60,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className={
                   pathname === item.href
                     ? 'text-violet-400 font-semibold'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    : 'text-mist hover:text-white'
                 }
               >
                 {item.label}
@@ -66,9 +68,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
         </div>
-        <div className="flex items-center gap-4 text-sm text-zinc-400">
+        <div className="flex items-center gap-4 text-sm text-mist">
           {profile && (
-            <span className="px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 tabular-nums">
+            <span className="px-3 py-1 rounded-full bg-ink-2 border border-edge tabular-nums">
               {profile.plan === 'internal'
                 ? 'uso interno'
                 : `${profile.credits_remaining} créditos · ${profile.plan}`}
@@ -79,7 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               await supabaseBrowser().auth.signOut();
               router.replace('/');
             }}
-            className="px-3 py-1.5 rounded-md border border-zinc-800 hover:border-zinc-600"
+            className="px-3 py-1.5 rounded-md border border-edge hover:border-mist/50"
           >
             Sair
           </button>

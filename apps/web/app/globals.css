@@ -1,26 +1,25 @@
 @import "tailwindcss";
 
+/* Identidade easymidia clip (brand/brand.md): fundo profundo, roxo #7C3AED,
+   lilás #A78BFA, Space Grotesk. App é dark-only por decisão de marca. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #120c22;
+  --surface: #1a1327;
+  --foreground: #ffffff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-ink: #120c22; /* fundo profundo */
+  --color-ink-2: #1a1327; /* superfícies (cards, inputs) */
+  --color-edge: #2b2244; /* bordas com tom da marca */
+  --color-mist: #c9c2de; /* texto de apoio */
+  --font-sans: var(--font-space-grotesk);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-space-grotesk), "Space Grotesk", system-ui, sans-serif;
 }

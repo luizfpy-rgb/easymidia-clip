@@ -128,14 +128,14 @@ export default function Niches() {
             placeholder="Nome do nicho (ex.: IA e Automação Tech)"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="flex-1 min-w-56 px-4 py-3 rounded-md bg-zinc-900 border border-zinc-800 focus:border-violet-500 outline-none"
+            className="flex-1 min-w-56 px-4 py-3 rounded-md bg-ink-2 border border-edge focus:border-violet-500 outline-none"
           />
           <input
             required
             placeholder="Palavras-chave separadas por vírgula"
             value={keywords}
             onChange={(e) => setKeywords(e.target.value)}
-            className="flex-1 min-w-56 px-4 py-3 rounded-md bg-zinc-900 border border-zinc-800 focus:border-violet-500 outline-none"
+            className="flex-1 min-w-56 px-4 py-3 rounded-md bg-ink-2 border border-edge focus:border-violet-500 outline-none"
           />
           <input
             type="number"
@@ -143,7 +143,7 @@ export default function Niches() {
             value={minViews}
             onChange={(e) => setMinViews(e.target.value)}
             title="Views mínimas"
-            className="w-32 px-4 py-3 rounded-md bg-zinc-900 border border-zinc-800 focus:border-violet-500 outline-none tabular-nums"
+            className="w-32 px-4 py-3 rounded-md bg-ink-2 border border-edge focus:border-violet-500 outline-none tabular-nums"
           />
           <button
             type="submit"
@@ -165,7 +165,7 @@ export default function Niches() {
               className={`px-4 py-2 rounded-md text-sm border ${
                 selected === n.id
                   ? 'border-violet-500 text-violet-300 bg-violet-950/40'
-                  : 'border-zinc-800 text-zinc-300 hover:border-zinc-600'
+                  : 'border-edge text-mist hover:border-mist/50'
               }`}
             >
               {n.name}
@@ -180,7 +180,7 @@ export default function Niches() {
           </div>
         ))}
         {niches.length === 0 && (
-          <p className="text-sm text-zinc-500">Nenhum nicho ainda — crie o primeiro acima.</p>
+          <p className="text-sm text-mist/60">Nenhum nicho ainda — crie o primeiro acima.</p>
         )}
       </div>
 
@@ -188,7 +188,7 @@ export default function Niches() {
         <section>
           <h2 className="text-lg font-bold mb-4">Vídeos descobertos</h2>
           {results.length === 0 ? (
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-mist/60">
               Nada ainda. Clique em Buscar e aguarde ~1 minuto.
             </p>
           ) : (
@@ -196,7 +196,7 @@ export default function Niches() {
               {results.map((v) => (
                 <li
                   key={v.id}
-                  className="flex items-center gap-4 border border-zinc-900 bg-zinc-900/40 rounded-lg px-5 py-4"
+                  className="flex items-center gap-4 border border-edge/60 bg-ink-2/60 rounded-lg px-5 py-4"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -206,14 +206,14 @@ export default function Niches() {
                   />
                   <div className="min-w-0 flex-1">
                     <p className="font-medium truncate">{v.title}</p>
-                    <p className="text-sm text-zinc-500 truncate">
+                    <p className="text-sm text-mist/60 truncate">
                       {v.channel ?? '—'}
                       {v.views ? ` · ${Intl.NumberFormat('pt-BR').format(v.views)} views` : ''}
                       {v.duration_seconds ? ` · ${Math.round(v.duration_seconds / 60)} min` : ''}
                     </p>
                   </div>
                   {v.rights_confirmed ? (
-                    <span className="text-xs text-zinc-500 shrink-0">No pipeline</span>
+                    <span className="text-xs text-mist/60 shrink-0">No pipeline</span>
                   ) : (
                     <button
                       onClick={() => ingest(v.id)}

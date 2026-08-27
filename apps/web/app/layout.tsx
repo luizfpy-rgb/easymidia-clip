@@ -1,21 +1,38 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
+  weight: ["400", "500", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const DESCRIPTION =
+  "De vídeo longo a Shorts publicados, no automático. IA encontra os trechos virais, renderiza com legendas karaokê e publica no seu cronograma.";
 
 export const metadata: Metadata = {
-  title: "easymidia clip",
-  description:
-    "De vídeo longo a Shorts publicados, no automático. IA encontra os trechos virais, renderiza e publica em 9 plataformas.",
+  metadataBase: new URL("https://www.easymidia.io"),
+  title: {
+    default: "easymidia clip — Shorts no automático",
+    template: "%s · easymidia clip",
+  },
+  description: DESCRIPTION,
+  openGraph: {
+    title: "easymidia clip — Shorts no automático",
+    description: DESCRIPTION,
+    url: "https://www.easymidia.io",
+    siteName: "easymidia clip",
+    locale: "pt_BR",
+    type: "website",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "easymidia clip" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "easymidia clip — Shorts no automático",
+    description: DESCRIPTION,
+    images: ["/og.png"],
+  },
 };
 
 export default function RootLayout({
@@ -25,11 +42,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
+      <body className={`${spaceGrotesk.variable} antialiased`}>{children}</body>
     </html>
   );
 }

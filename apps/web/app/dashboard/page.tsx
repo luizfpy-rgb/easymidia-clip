@@ -18,7 +18,7 @@ interface SourceVideo {
 }
 
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
-  pending: { text: 'Na fila', cls: 'bg-zinc-800 text-zinc-300' },
+  pending: { text: 'Na fila', cls: 'bg-white/10 text-mist' },
   downloading: { text: 'Baixando áudio', cls: 'bg-sky-950 text-sky-300' },
   transcribing: { text: 'Transcrevendo', cls: 'bg-violet-950 text-violet-300' },
   analyzing: { text: 'Analisando trechos', cls: 'bg-violet-950 text-violet-300' },
@@ -39,6 +39,7 @@ export default function Dashboard() {
   const [url, setUrl] = useState('');
   const [rights, setRights] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [retrying, setRetrying] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -86,6 +87,18 @@ export default function Dashboard() {
     setBusy(false);
   }
 
+  async function retry(videoId: string) {
+    setRetrying(videoId);
+    setMessage(null);
+    try {
+      await apiFetch(`/v1/source-videos/${videoId}/retry`, { method: 'POST' });
+      await refresh();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Erro inesperado');
+    }
+    setRetrying(null);
+  }
+
   return (
     <AppShell>
       <section className="mb-10">
@@ -98,7 +111,7 @@ export default function Dashboard() {
               placeholder="https://www.youtube.com/watch?v=…"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              className="flex-1 px-4 py-3 rounded-md bg-zinc-900 border border-zinc-800 focus:border-violet-500 outline-none"
+              className="flex-1 px-4 py-3 rounded-md bg-ink-2 border border-edge focus:border-violet-500 outline-none"
             />
             <button
               type="submit"
@@ -108,7 +121,7 @@ export default function Dashboard() {
               {busy ? 'Enviando…' : 'Adicionar'}
             </button>
           </div>
-          <label className="flex items-start gap-2 text-sm text-zinc-400">
+          <label className="flex items-start gap-2 text-sm text-mist">
             <input
               type="checkbox"
               checked={rights}
@@ -125,17 +138,17 @@ export default function Dashboard() {
       <section>
         <h2 className="text-lg font-bold mb-4">Vídeos fonte</h2>
         {videos.length === 0 ? (
-          <div className="border border-dashed border-zinc-800 rounded-lg p-10 text-center text-zinc-500 text-sm">
+          <div className="border border-dashed border-edge rounded-lg p-10 text-center text-mist/60 text-sm">
             Nenhum vídeo ainda — adicione um link acima ou use a Descoberta por nicho.
           </div>
         ) : (
           <ul className="flex flex-col gap-3">
             {videos.map((v) => {
-              const badge = STATUS_LABEL[v.status] ?? { text: v.status, cls: 'bg-zinc-800 text-zinc-300' };
+              const badge = STATUS_LABEL[v.status] ?? { text: v.status, cls: 'bg-white/10 text-mist' };
               return (
                 <li
                   key={v.id}
-                  className="flex items-center gap-4 border border-zinc-900 bg-zinc-900/40 rounded-lg px-5 py-4"
+                  className="flex items-center gap-4 border border-edge/60 bg-ink-2/60 rounded-lg px-5 py-4"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -145,7 +158,7 @@ export default function Dashboard() {
                   />
                   <div className="min-w-0 flex-1">
                     <p className="font-medium truncate">{v.title}</p>
-                    <p className="text-sm text-zinc-500 truncate">
+                    <p className="text-sm text-mist/60 truncate">
                       {v.channel ?? '—'} · {fmtDuration(v.duration_seconds)}
                       {v.views ? ` · ${Intl.NumberFormat('pt-BR').format(v.views)} views` : ''}
                     </p>
@@ -163,6 +176,15 @@ export default function Dashboard() {
                     >
                       Ver trechos
                     </Link>
+                  )}
+                  {v.status === 'failed' && (
+                    <button
+                      onClick={() => retry(v.id)}
+                      disabled={retrying === v.id}
+                      className="text-sm px-4 py-2 rounded-md border border-edge hover:border-violet-500 disabled:opacity-40 font-semibold shrink-0"
+                    >
+                      {retrying === v.id ? 'Enviando…' : 'Tentar de novo'}
+                    </button>
                   )}
                 </li>
               );

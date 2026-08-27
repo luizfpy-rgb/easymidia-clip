@@ -1,0 +1,78 @@
+{
+  "version": "5",
+  "remote": {
+    "https://esm.sh/@resvg/resvg-wasm@2.6.2": "0657db3e6d5f5b08b63e93c566b7ea08569c5f895188c13b27dd495908e7e3df",
+    "https://esm.sh/@resvg/resvg-wasm@2.6.2/denonext/resvg-wasm.mjs": "206e2ea8a8f0534dceb64a02e9c8f09c060919326cb96f8eab533c3e97564f52"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:pg@^8.23.0"
+      ]
+    },
+    "members": {
+      "apps/api": {
+        "packageJson": {
+          "dependencies": [
+            "npm:@easymidia/shared@*",
+            "npm:@hono/node-server@^1.13.0",
+            "npm:@supabase/supabase-js@^2.45.0",
+            "npm:@types/luxon@^3.7.5",
+            "npm:@types/node@22",
+            "npm:bullmq@^5.12.0",
+            "npm:hono@^4.6.0",
+            "npm:ioredis@^5.4.0",
+            "npm:luxon@^3.7.2",
+            "npm:stripe@^22.5.0",
+            "npm:tsx@^4.19.0",
+            "npm:typescript@^5.6.0",
+            "npm:zod@^4.4.3"
+          ]
+        }
+      },
+      "apps/web": {
+        "packageJson": {
+          "dependencies": [
+            "npm:@eslint/eslintrc@3",
+            "npm:@supabase/ssr@0.5",
+            "npm:@supabase/supabase-js@^2.45.0",
+            "npm:@tailwindcss/postcss@4",
+            "npm:@types/node@20",
+            "npm:@types/react-dom@19",
+            "npm:@types/react@19",
+            "npm:eslint-config-next@15.5.24",
+            "npm:eslint@9",
+            "npm:next@15.5.24",
+            "npm:react-dom@19.1.0",
+            "npm:react@19.1.0",
+            "npm:tailwindcss@4",
+            "npm:typescript@5"
+          ]
+        }
+      },
+      "apps/worker": {
+        "packageJson": {
+          "dependencies": [
+            "npm:@anthropic-ai/sdk@0.120",
+            "npm:@aws-sdk/client-s3@^3.650.0",
+            "npm:@easymidia/shared@*",
+            "npm:@supabase/supabase-js@^2.45.0",
+            "npm:@types/node@22",
+            "npm:bullmq@^5.12.0",
+            "npm:ioredis@^5.4.0",
+            "npm:tsx@^4.19.0",
+            "npm:typescript@^5.6.0",
+            "npm:zod@^4.4.3"
+          ]
+        }
+      },
+      "packages/shared": {
+        "packageJson": {
+          "dependencies": [
+            "npm:typescript@^5.6.0"
+          ]
+        }
+      }
+    }
+  }
+}
