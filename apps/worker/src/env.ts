@@ -19,6 +19,9 @@ const schema = z.object({
   YTDLP_COOKIES_FILE: z.string().optional(),
   // Alternativa pra deploy (Railway): conteúdo do cookies.txt em base64
   YTDLP_COOKIES_B64: z.string().optional(),
+  // CSV de filas que este worker consome (vazio = todas). Permite split:
+  // downloads (transcribe,render) em IP residencial; resto no Railway (C4).
+  WORKER_QUEUES: z.string().optional(),
 });
 
 // R2/APIs são opcionais na Fase 1; cada processor valida o que precisa ao ser implementado.

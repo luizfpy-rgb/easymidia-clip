@@ -21,17 +21,27 @@ function start(name: string, processor: Processor, opts: Partial<Omit<WorkerOpti
   return worker;
 }
 
-const workers = [
-  start(QUEUES.discoverVideos, discoverVideos),
-  start(QUEUES.transcribe, transcribe),
-  // Render é CPU-bound: 1 por vez por container (revisão 7.4)
-  start(QUEUES.render, render, { concurrency: 1 }),
-  start(QUEUES.analyzeClips, analyzeClips, { concurrency: 3 }),
-  start(QUEUES.publish, publish, { limiter: PUBLISH_LIMITER }),
-  start(QUEUES.pollBlotatoStatus, pollBlotatoStatus),
-];
+const enabled = new Set(
+  (env.WORKER_QUEUES ?? '')
+    .split(',')
+    .map((q) => q.trim())
+    .filter(Boolean)
+);
+const wants = (name: string) => enabled.size === 0 || enabled.has(name);
 
-console.log(`easymidia worker up — ${workers.length} queues`);
+const workers = [
+  wants(QUEUES.discoverVideos) && start(QUEUES.discoverVideos, discoverVideos),
+  wants(QUEUES.transcribe) && start(QUEUES.transcribe, transcribe),
+  // Render é CPU-bound: 1 por vez por container (revisão 7.4)
+  wants(QUEUES.render) && start(QUEUES.render, render, { concurrency: 1 }),
+  wants(QUEUES.analyzeClips) && start(QUEUES.analyzeClips, analyzeClips, { concurrency: 3 }),
+  wants(QUEUES.publish) && start(QUEUES.publish, publish, { limiter: PUBLISH_LIMITER }),
+  wants(QUEUES.pollBlotatoStatus) && start(QUEUES.pollBlotatoStatus, pollBlotatoStatus),
+].filter((w): w is Worker => Boolean(w));
+
+console.log(
+  `easymidia worker up — ${workers.length} queues${enabled.size ? ` (${[...enabled].join(', ')})` : ''}`
+);
 
 // Polling de status do Blotato a cada 3 min (não existe webhook — revisão C1)
 import('./lib/queues.js').then(({ pollBlotatoQueue }) =>
