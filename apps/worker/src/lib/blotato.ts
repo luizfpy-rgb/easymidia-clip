@@ -46,8 +46,10 @@ export async function createPost(apiKey: string, input: CreatePostInput): Promis
   const target: Record<string, unknown> = { targetType: input.platform };
   if (input.pageId) target.pageId = input.pageId;
   if (input.platform === 'youtube') {
+    // Campos obrigatórios validados contra a API real em 27/ago/2026
     target.title = input.youtubeTitle ?? input.text.slice(0, 95);
     target.privacyStatus = 'public';
+    target.shouldNotifySubscribers = true;
   }
   const body = {
     post: {
