@@ -28,6 +28,9 @@ const schema = z.object({
   // Geração de avatares (Google AI Studio) — sem a chave, generate-avatar falha com aviso
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_IMAGE_MODEL: z.string().default('gemini-2.5-flash-image'),
+  // Animação das expressões em vídeo (fal.ai) — sem a chave, avatar sai estático
+  FAL_KEY: z.string().optional(),
+  FAL_I2V_MODEL: z.string().default('fal-ai/wan-i2v'),
 });
 
 // R2/APIs são opcionais na Fase 1; cada processor valida o que precisa ao ser implementado.

@@ -153,7 +153,9 @@ async function renderInner(job: Job<RenderJob>) {
       if (!file) {
         const res = await fetch(exprUrl);
         if (!res.ok) continue;
-        file = `avatar_${downloaded.size}.png`;
+        // Expressão pode ser retrato (.png) ou loop de reação em vídeo (.mp4)
+        const ext = /\.mp4(\?|$)/i.test(exprUrl) ? 'mp4' : 'png';
+        file = `avatar_${downloaded.size}.${ext}`;
         await writeFile(join(workDir, file), Buffer.from(await res.arrayBuffer()));
         downloaded.set(exprUrl, file);
       }
@@ -168,7 +170,12 @@ async function renderInner(job: Job<RenderJob>) {
     const inputs: string[] = ['-i', 'clip.mp4'];
     const uniqueFiles = [...new Set(windows.map((w) => w.file))];
     for (const f of uniqueFiles) {
-      inputs.push('-loop', '1', '-t', duration.toFixed(2), '-i', f);
+      if (f.endsWith('.mp4')) {
+        // Loop de reação: repete o vídeo pelo clip inteiro (enable= liga/desliga)
+        inputs.push('-stream_loop', '-1', '-t', duration.toFixed(2), '-i', f);
+      } else {
+        inputs.push('-loop', '1', '-t', duration.toFixed(2), '-i', f);
+      }
     }
     const filters: string[] = [
       `color=c=${CANVAS_BG}:s=1080x1920:d=${duration.toFixed(2)}:r=30[bg]`,
@@ -185,7 +192,7 @@ async function renderInner(job: Job<RenderJob>) {
         .join('+');
       // Máscara circular: o avatar entra como medalhão, sem cantos quadrados
       filters.push(
-        `[${inputIdx}:v]scale=260:260,format=rgba,` +
+        `[${inputIdx}:v]scale=260:260,setsar=1,fps=30,format=rgba,` +
           `geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lte(hypot(X-W/2,Y-H/2),W/2-1),alpha(X,Y),0)'[av${idx}]`
       );
       filters.push(`[${chain}][av${idx}]overlay=790:1560:enable='${enable}'[c${idx + 2}]`);

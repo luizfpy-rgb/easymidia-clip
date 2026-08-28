@@ -45,6 +45,7 @@ export default function AvatarPage() {
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [name, setName] = useState('');
+  const [style, setStyle] = useState<'realistic' | 'cartoon'>('realistic');
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -76,7 +77,7 @@ export default function AvatarPage() {
       const image_base64 = await downscaleToBase64(file);
       await apiFetch('/v1/avatars/generate', {
         method: 'POST',
-        body: JSON.stringify({ name, image_base64 }),
+        body: JSON.stringify({ name, style, image_base64 }),
       });
       setName('');
       setFile(null);
@@ -130,6 +131,15 @@ export default function AvatarPage() {
           onChange={(e) => setName(e.target.value)}
           className="flex-1 min-w-56 px-4 py-3 rounded-md bg-ink-2 border border-edge focus:border-violet-500 outline-none"
         />
+        <select
+          value={style}
+          onChange={(e) => setStyle(e.target.value as 'realistic' | 'cartoon')}
+          title="Estilo do avatar"
+          className="px-4 py-3 rounded-md bg-ink-2 border border-edge focus:border-violet-500 outline-none"
+        >
+          <option value="realistic">Clone realista</option>
+          <option value="cartoon">Cartoon 3D</option>
+        </select>
         <input
           ref={fileInput}
           required
@@ -147,7 +157,9 @@ export default function AvatarPage() {
         </button>
       </form>
       <p className="text-xs text-mist/60 mb-8">
-        Use uma foto de rosto bem iluminada, de frente. Custa ~US$ 0,20 por avatar gerado.
+        Use uma foto de rosto bem iluminada, de frente. Com animação ligada, cada expressão
+        vira um loop de vídeo reagindo (~US$ 1,70/avatar; sem animação, ~US$ 0,20). A geração
+        animada leva ~10 min.
       </p>
 
       {message && <p className="text-sm text-amber-400 mb-6">{message}</p>}
@@ -180,6 +192,7 @@ export default function AvatarPage() {
         {avatars.map((a) => {
           const badge = STATUS_BADGE[a.status];
           const exprs = Object.entries(a.expressions ?? {});
+          const animated = exprs.some(([, url]) => url.endsWith('.mp4'));
           return (
             <div
               key={a.id}
@@ -192,6 +205,11 @@ export default function AvatarPage() {
                   {a.name}
                   {a.user_id === null && (
                     <span className="ml-2 text-xs text-mist/60">biblioteca</span>
+                  )}
+                  {animated && (
+                    <span className="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-950 text-violet-300">
+                      animado
+                    </span>
                   )}
                 </p>
                 <div className="flex items-center gap-2 shrink-0">
@@ -234,12 +252,23 @@ export default function AvatarPage() {
                 )}
                 {exprs.map(([expr, url]) => (
                   <figure key={expr} className="text-center">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={url}
-                      alt={expr}
-                      className="w-16 h-16 rounded-full object-cover border border-edge"
-                    />
+                    {url.endsWith('.mp4') ? (
+                      <video
+                        src={url}
+                        muted
+                        loop
+                        autoPlay
+                        playsInline
+                        className="w-16 h-16 rounded-full object-cover border border-edge"
+                      />
+                    ) : (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={url}
+                        alt={expr}
+                        className="w-16 h-16 rounded-full object-cover border border-edge"
+                      />
+                    )}
                     <figcaption className="text-[10px] text-mist/60 mt-1">
                       {EXPRESSION_LABEL[expr] ?? expr}
                     </figcaption>

@@ -47,4 +47,6 @@ export interface GenerateAvatarJob {
   avatarId: string;
   // JPEG reduzido no browser (≤1024px) — evita credencial R2 na API
   sourceImageBase64: string;
+  // realistic = clone fotorrealista (anima em vídeo se FAL_KEY existir)
+  style?: 'realistic' | 'cartoon';
 }

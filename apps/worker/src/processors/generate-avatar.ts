@@ -5,16 +5,25 @@ import { supabaseAdmin } from '../lib/supabase.js';
 import { uploadToR2 } from '../lib/r2.js';
 import { notifyFailure } from '../lib/notify.js';
 
-// Foto do usuário → 5 expressões estilizadas via Gemini image (Nano Banana).
-// Custo ~US$ 0,04/imagem no gemini-2.5-flash-image = ~US$ 0,20 por avatar.
+// Foto do usuário → 5 expressões via Gemini image (~US$ 0,04/imagem) e, com
+// FAL_KEY configurada, cada expressão vira um LOOP DE VÍDEO de reação via
+// image-to-video (~US$ 0,2-0,4/clipe) — o "clone reagindo" no medalhão.
 // A mesma foto vai em TODAS as chamadas pra manter a identidade do personagem.
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-const STYLE_PROMPT =
-  'Create a stylized 3D animated-movie style character portrait based on the person in this photo. ' +
-  'Head and shoulders only, centered, square 1:1 composition. Deep purple studio background (#1A1327) ' +
-  'with a soft violet glow, clean rim lighting. Keep the exact same character identity, hairstyle, ' +
-  'skin tone and distinctive features. No text, no watermark.';
+const STYLE_PROMPTS: Record<string, string> = {
+  realistic:
+    'Create an ultra-realistic portrait photograph of the exact same person from this photo. ' +
+    'Head and shoulders only, centered, square 1:1 composition, facing the camera. Natural skin ' +
+    'texture, soft studio lighting, deep purple background (#1A1327) with a subtle violet glow. ' +
+    'Preserve the exact identity, hairstyle, skin tone and distinctive features. Photorealistic, ' +
+    'DSLR quality. No text, no watermark.',
+  cartoon:
+    'Create a stylized 3D animated-movie style character portrait based on the person in this photo. ' +
+    'Head and shoulders only, centered, square 1:1 composition. Deep purple studio background (#1A1327) ' +
+    'with a soft violet glow, clean rim lighting. Keep the exact same character identity, hairstyle, ' +
+    'skin tone and distinctive features. No text, no watermark.',
+};
 
 // Mesmas 5 expressões do expression_timeline (analyze-clips)
 const EXPRESSIONS: Record<string, string> = {
@@ -25,6 +34,18 @@ const EXPRESSIONS: Record<string, string> = {
   analytical: 'Analytical expression: thoughtful look, hand on chin, focused eyes.',
 };
 
+// Movimento do loop de reação (image-to-video). Câmera parada + movimento
+// sutil = loop que não cansa repetindo no canto do short.
+const MOTION_SUFFIX =
+  ' Static camera, plain background, natural subtle motion, seamless loop, no text.';
+const MOTIONS: Record<string, string> = {
+  idle: 'The person breathes naturally, blinks and makes calm micro-movements, looking at the camera.' + MOTION_SUFFIX,
+  curious: 'The person raises an eyebrow and tilts the head slightly with an intrigued look.' + MOTION_SUFFIX,
+  impressed: 'The person reacts impressed: eyes widen and mouth opens in a wow reaction.' + MOTION_SUFFIX,
+  approved: 'The person nods approvingly, smiles and gives a thumbs up.' + MOTION_SUFFIX,
+  analytical: 'The person looks thoughtful, touches the chin and glances up briefly.' + MOTION_SUFFIX,
+};
+
 interface GeminiResponse {
   candidates?: {
     content?: { parts?: { inlineData?: { mimeType?: string; data?: string } }[] };
@@ -32,7 +53,52 @@ interface GeminiResponse {
   error?: { message?: string };
 }
 
-async function generateExpression(sourceBase64: string, expressionPrompt: string): Promise<Buffer> {
+// fal.ai queue API: submete, faz polling e baixa o mp4 do loop
+async function animateExpression(imageUrl: string, motionPrompt: string): Promise<Buffer> {
+  const headers = { Authorization: `Key ${env.FAL_KEY}`, 'Content-Type': 'application/json' };
+  const submitRes = await fetch(`https://queue.fal.run/${env.FAL_I2V_MODEL}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ image_url: imageUrl, prompt: motionPrompt }),
+  });
+  const submitted = (await submitRes.json().catch(() => ({}))) as {
+    status_url?: string;
+    response_url?: string;
+  };
+  if (!submitRes.ok || !submitted.status_url || !submitted.response_url) {
+    throw new Error(`fal submit ${submitRes.status}: ${JSON.stringify(submitted).slice(0, 200)}`);
+  }
+
+  const deadline = Date.now() + 10 * 60_000;
+  let completed = false;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 5000));
+    const statusRes = await fetch(submitted.status_url, { headers });
+    const status = (await statusRes.json().catch(() => ({}))) as { status?: string };
+    if (status.status === 'COMPLETED') {
+      completed = true;
+      break;
+    }
+    if (status.status === 'FAILED' || status.status === 'ERROR') {
+      throw new Error('fal: geração do loop de vídeo falhou');
+    }
+  }
+  if (!completed) throw new Error('fal: timeout de 10 min na geração do loop');
+
+  const out = (await (await fetch(submitted.response_url, { headers })).json()) as {
+    video?: { url?: string };
+  };
+  if (!out.video?.url) throw new Error('fal: resposta sem vídeo');
+  const download = await fetch(out.video.url);
+  if (!download.ok) throw new Error(`fal: download do vídeo → ${download.status}`);
+  return Buffer.from(await download.arrayBuffer());
+}
+
+async function generateExpression(
+  sourceBase64: string,
+  stylePrompt: string,
+  expressionPrompt: string
+): Promise<Buffer> {
   const res = await fetch(`${GEMINI_URL}/${env.GEMINI_IMAGE_MODEL}:generateContent`, {
     method: 'POST',
     headers: {
@@ -44,7 +110,7 @@ async function generateExpression(sourceBase64: string, expressionPrompt: string
         {
           parts: [
             { inlineData: { mimeType: 'image/jpeg', data: sourceBase64 } },
-            { text: `${STYLE_PROMPT}\n\n${expressionPrompt}` },
+            { text: `${stylePrompt}\n\n${expressionPrompt}` },
           ],
         },
       ],
@@ -97,10 +163,20 @@ export async function generateAvatar(job: Job<GenerateAvatarJob>) {
       .update({ source_image_url: sourceUrl, error_message: null })
       .eq('id', avatarId);
 
+    const style = job.data.style ?? 'cartoon';
+    const stylePrompt = STYLE_PROMPTS[style] ?? STYLE_PROMPTS.cartoon;
+    const animate = Boolean(env.FAL_KEY);
+
     const expressions: Record<string, string> = {};
     for (const [name, prompt] of Object.entries(EXPRESSIONS)) {
-      const image = await generateExpression(sourceBase64, prompt);
-      expressions[name] = await uploadToR2(`${prefix}/${name}.png`, image, 'image/png');
+      const image = await generateExpression(sourceBase64, stylePrompt, prompt);
+      const stillUrl = await uploadToR2(`${prefix}/${name}.png`, image, 'image/png');
+      expressions[name] = stillUrl;
+      if (animate) {
+        // Clone reagindo: anima o retrato em loop de vídeo (o render detecta .mp4)
+        const loop = await animateExpression(stillUrl, MOTIONS[name] ?? MOTIONS.idle);
+        expressions[name] = await uploadToR2(`${prefix}/${name}.mp4`, loop, 'video/mp4');
+      }
       // Progresso parcial visível na UI (expressões aparecem uma a uma)
       await supabaseAdmin.from('avatars').update({ expressions }).eq('id', avatarId);
     }
@@ -114,8 +190,15 @@ export async function generateAvatar(job: Job<GenerateAvatarJob>) {
       user_id: userId,
       event_type: 'avatar_generation',
       reference_id: avatarId,
-      cost_usd: 0.2, // 5 imagens × ~US$0,04 (gemini-2.5-flash-image)
-      metadata: { model: env.GEMINI_IMAGE_MODEL, expressions: Object.keys(expressions).length },
+      // 5 imagens × ~US$0,04 + (se animado) 5 loops × ~US$0,3
+      cost_usd: animate ? 1.7 : 0.2,
+      metadata: {
+        model: env.GEMINI_IMAGE_MODEL,
+        style,
+        animated: animate,
+        i2v_model: animate ? env.FAL_I2V_MODEL : null,
+        expressions: Object.keys(expressions).length,
+      },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

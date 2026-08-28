@@ -9,6 +9,7 @@ import { queues } from '../lib/queues.js';
 // (a API não tem credencial R2; quem sobe pro bucket é o worker). ~4MB de teto.
 const generateBody = z.object({
   name: z.string().min(2).max(40),
+  style: z.enum(['realistic', 'cartoon']).default('realistic'),
   image_base64: z
     .string()
     .min(100)
@@ -50,6 +51,7 @@ export const avatars = new Hono<{ Variables: AuthVariables }>()
         userId,
         avatarId: avatar.id,
         sourceImageBase64: parsed.data.image_base64,
+        style: parsed.data.style,
       } satisfies GenerateAvatarJob,
       // Payload grande (foto): não deixar acumulando no Redis
       { attempts: 2, removeOnComplete: true, removeOnFail: { age: 86_400 } }
