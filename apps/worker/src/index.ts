@@ -10,6 +10,7 @@ import { publish } from './processors/publish.js';
 import { pollBlotatoStatus } from './processors/poll-blotato-status.js';
 import { cleanupR2 } from './processors/cleanup-r2.js';
 import { collectMetrics } from './processors/collect-metrics.js';
+import { generateAvatar } from './processors/generate-avatar.js';
 
 const connection = new Redis(env.UPSTASH_REDIS_URL, {
   maxRetriesPerRequest: null,
@@ -41,6 +42,7 @@ const workers = [
   wants(QUEUES.pollBlotatoStatus) && start(QUEUES.pollBlotatoStatus, pollBlotatoStatus),
   wants(QUEUES.cleanupR2) && start(QUEUES.cleanupR2, cleanupR2),
   wants(QUEUES.collectMetrics) && start(QUEUES.collectMetrics, collectMetrics),
+  wants(QUEUES.generateAvatar) && start(QUEUES.generateAvatar, generateAvatar),
 ].filter((w): w is Worker => Boolean(w));
 
 console.log(

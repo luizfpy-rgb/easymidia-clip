@@ -19,4 +19,5 @@ export const queues = {
   render: makeQueue(QUEUES.render),
   publish: makeQueue(QUEUES.publish),
   collectMetrics: makeQueue(QUEUES.collectMetrics),
+  generateAvatar: makeQueue(QUEUES.generateAvatar),
 };

@@ -7,6 +7,7 @@ export const QUEUES = {
   pollBlotatoStatus: 'poll-blotato-status',
   cleanupR2: 'cleanup-r2',
   collectMetrics: 'collect-metrics',
+  generateAvatar: 'generate-avatar',
 } as const;
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 
@@ -40,4 +41,10 @@ export interface RenderJob {
 export interface PublishJob {
   userId: string;
   scheduleSlotId: string;
+}
+export interface GenerateAvatarJob {
+  userId: string;
+  avatarId: string;
+  // JPEG reduzido no browser (≤1024px) — evita credencial R2 na API
+  sourceImageBase64: string;
 }

@@ -19,6 +19,7 @@ const NAV = [
   { href: '/dashboard/shorts', label: 'Bandeja' },
   { href: '/dashboard/schedule', label: 'Cronograma' },
   { href: '/dashboard/analytics', label: 'Métricas' },
+  { href: '/dashboard/avatar', label: 'Avatar' },
   { href: '/dashboard/contas', label: 'Contas' },
 ];
 

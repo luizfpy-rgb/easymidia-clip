@@ -25,6 +25,9 @@ const schema = z.object({
   // Alerta de falha definitiva via Telegram (opcional — sem as duas vars, só loga)
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_CHAT_ID: z.string().optional(),
+  // Geração de avatares (Google AI Studio) — sem a chave, generate-avatar falha com aviso
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_IMAGE_MODEL: z.string().default('gemini-2.5-flash-image'),
 });
 
 // R2/APIs são opcionais na Fase 1; cada processor valida o que precisa ao ser implementado.

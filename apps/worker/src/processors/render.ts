@@ -120,13 +120,21 @@ async function renderInner(job: Job<RenderJob>) {
       if (f.endsWith('.ttf')) await copyFile(join(FONTS_DIR, f), join(workDir, 'fonts', f));
     }
 
-    // 3. Avatar: baixa as expressões existentes (URLs nulas → renderiza sem avatar)
-    const { data: avatar } = await supabaseAdmin
-      .from('avatars')
-      .select('id, expressions')
-      .is('user_id', null)
-      .limit(1)
+    // 3. Avatar: usa o selecionado no perfil (profiles.avatar_id; null = sem avatar)
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('avatar_id')
+      .eq('id', userId)
       .single();
+    let avatar: { id: string; expressions: unknown } | null = null;
+    if (profile?.avatar_id) {
+      const { data } = await supabaseAdmin
+        .from('avatars')
+        .select('id, expressions, status')
+        .eq('id', profile.avatar_id)
+        .single();
+      if (data && data.status === 'ready') avatar = data;
+    }
     const expressions = (avatar?.expressions ?? {}) as Record<string, string | null>;
     const timeline = ((clip.expression_timeline ?? []) as ExpressionEntry[])
       .filter((e) => e.at_seconds >= 0 && e.at_seconds < duration)
@@ -175,7 +183,11 @@ async function renderInner(job: Job<RenderJob>) {
         .filter((w) => w.file === f)
         .map((w) => `between(t,${w.from.toFixed(2)},${w.to.toFixed(2)})`)
         .join('+');
-      filters.push(`[${inputIdx}:v]scale=260:260[av${idx}]`);
+      // Máscara circular: o avatar entra como medalhão, sem cantos quadrados
+      filters.push(
+        `[${inputIdx}:v]scale=260:260,format=rgba,` +
+          `geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lte(hypot(X-W/2,Y-H/2),W/2-1),alpha(X,Y),0)'[av${idx}]`
+      );
       filters.push(`[${chain}][av${idx}]overlay=790:1560:enable='${enable}'[c${idx + 2}]`);
       chain = `c${idx + 2}`;
     });

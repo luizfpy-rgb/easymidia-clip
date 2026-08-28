@@ -1,0 +1,255 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppShell } from '@/components/AppShell';
+import { apiFetch } from '@/lib/api';
+
+interface Avatar {
+  id: string;
+  user_id: string | null;
+  name: string;
+  expressions: Record<string, string>;
+  status: 'generating' | 'ready' | 'failed';
+  error_message: string | null;
+  created_at: string;
+}
+
+const EXPRESSION_LABEL: Record<string, string> = {
+  idle: 'Neutro',
+  curious: 'Curioso',
+  impressed: 'Impressionado',
+  approved: 'Aprovando',
+  analytical: 'Analítico',
+};
+
+const STATUS_BADGE: Record<Avatar['status'], { text: string; cls: string }> = {
+  generating: { text: 'Gerando…', cls: 'bg-violet-950 text-violet-300' },
+  ready: { text: 'Pronto', cls: 'bg-emerald-950 text-emerald-300' },
+  failed: { text: 'Falhou', cls: 'bg-red-950 text-red-300' },
+};
+
+// Reduz a foto no browser (≤1024px JPEG) — mantém o payload pequeno
+async function downscaleToBase64(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 1024 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('canvas indisponível');
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
+
+export default function AvatarPage() {
+  const [avatars, setAvatars] = useState<Avatar[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const refresh = useCallback(async () => {
+    const res = await apiFetch('/v1/avatars');
+    setAvatars(res.avatars);
+    setSelectedId(res.selected_avatar_id);
+  }, []);
+
+  useEffect(() => {
+    refresh().catch(() => setMessage('Não foi possível carregar os avatares.'));
+  }, [refresh]);
+
+  // Enquanto houver geração em andamento, atualiza a cada 5s
+  useEffect(() => {
+    if (!avatars.some((a) => a.status === 'generating')) return;
+    const id = setInterval(() => refresh().catch(() => {}), 5000);
+    return () => clearInterval(id);
+  }, [avatars, refresh]);
+
+  async function generate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!file) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const image_base64 = await downscaleToBase64(file);
+      await apiFetch('/v1/avatars/generate', {
+        method: 'POST',
+        body: JSON.stringify({ name, image_base64 }),
+      });
+      setName('');
+      setFile(null);
+      if (fileInput.current) fileInput.current.value = '';
+      setMessage('Geração iniciada — as 5 expressões aparecem em ~2 minutos.');
+      await refresh();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Erro inesperado');
+    }
+    setBusy(false);
+  }
+
+  async function select(avatarId: string | null) {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await apiFetch('/v1/avatars/select', {
+        method: 'POST',
+        body: JSON.stringify({ avatar_id: avatarId }),
+      });
+      setSelectedId(avatarId);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Erro inesperado');
+    }
+    setBusy(false);
+  }
+
+  async function remove(avatarId: string) {
+    if (!confirm('Apagar este avatar? Os shorts já renderizados não mudam.')) return;
+    try {
+      await apiFetch(`/v1/avatars/${avatarId}`, { method: 'DELETE' });
+      await refresh();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Erro inesperado');
+    }
+  }
+
+  return (
+    <AppShell>
+      <h1 className="text-xl font-bold mb-2">Avatar</h1>
+      <p className="text-sm text-mist/60 mb-8 max-w-2xl">
+        O avatar aparece como um medalhão reagindo nos seus shorts, trocando de expressão
+        conforme a emoção do áudio. Envie uma foto e a IA gera as 5 expressões no seu estilo.
+      </p>
+
+      <form onSubmit={generate} className="flex gap-3 flex-wrap items-end max-w-2xl mb-4">
+        <input
+          required
+          placeholder="Nome do avatar (ex.: Luiz cartoon)"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="flex-1 min-w-56 px-4 py-3 rounded-md bg-ink-2 border border-edge focus:border-violet-500 outline-none"
+        />
+        <input
+          ref={fileInput}
+          required
+          type="file"
+          accept="image/jpeg,image/png"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="text-sm text-mist file:mr-3 file:px-4 file:py-3 file:rounded-md file:border-0 file:bg-ink-2 file:text-mist file:cursor-pointer"
+        />
+        <button
+          type="submit"
+          disabled={busy || !file}
+          className="px-6 py-3 rounded-md bg-violet-600 hover:bg-violet-500 disabled:opacity-40 font-semibold"
+        >
+          Gerar avatar
+        </button>
+      </form>
+      <p className="text-xs text-mist/60 mb-8">
+        Use uma foto de rosto bem iluminada, de frente. Custa ~US$ 0,20 por avatar gerado.
+      </p>
+
+      {message && <p className="text-sm text-amber-400 mb-6">{message}</p>}
+
+      <div className="grid md:grid-cols-2 gap-5">
+        <div
+          className={`rounded-xl border p-5 ${
+            selectedId === null ? 'border-violet-500 bg-violet-950/20' : 'border-edge bg-ink-2/60'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <p className="font-bold">Sem avatar</p>
+            {selectedId === null ? (
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-violet-950 text-violet-300">
+                Selecionado
+              </span>
+            ) : (
+              <button
+                onClick={() => select(null)}
+                disabled={busy}
+                className="text-sm px-3 py-1.5 rounded-md border border-edge hover:border-violet-500 disabled:opacity-40"
+              >
+                Usar
+              </button>
+            )}
+          </div>
+          <p className="text-sm text-mist/60 mt-2">Shorts saem limpos, só com legendas e marca.</p>
+        </div>
+
+        {avatars.map((a) => {
+          const badge = STATUS_BADGE[a.status];
+          const exprs = Object.entries(a.expressions ?? {});
+          return (
+            <div
+              key={a.id}
+              className={`rounded-xl border p-5 ${
+                selectedId === a.id ? 'border-violet-500 bg-violet-950/20' : 'border-edge bg-ink-2/60'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-bold truncate">
+                  {a.name}
+                  {a.user_id === null && (
+                    <span className="ml-2 text-xs text-mist/60">biblioteca</span>
+                  )}
+                </p>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${badge.cls}`}>
+                    {badge.text}
+                  </span>
+                  {a.status === 'ready' &&
+                    (selectedId === a.id ? (
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-violet-950 text-violet-300">
+                        Selecionado
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => select(a.id)}
+                        disabled={busy}
+                        className="text-sm px-3 py-1.5 rounded-md border border-edge hover:border-violet-500 disabled:opacity-40"
+                      >
+                        Usar
+                      </button>
+                    ))}
+                  {a.user_id !== null && (
+                    <button
+                      onClick={() => remove(a.id)}
+                      className="text-sm px-2 py-1.5 rounded-md text-mist/60 hover:text-red-300"
+                      title="Apagar avatar"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {a.status === 'failed' && a.error_message && (
+                <p className="text-xs text-red-400 mt-2">{a.error_message}</p>
+              )}
+
+              <div className="flex gap-2 mt-4 flex-wrap">
+                {exprs.length === 0 && a.status === 'generating' && (
+                  <p className="text-sm text-mist/60">Gerando expressões…</p>
+                )}
+                {exprs.map(([expr, url]) => (
+                  <figure key={expr} className="text-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={url}
+                      alt={expr}
+                      className="w-16 h-16 rounded-full object-cover border border-edge"
+                    />
+                    <figcaption className="text-[10px] text-mist/60 mt-1">
+                      {EXPRESSION_LABEL[expr] ?? expr}
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </AppShell>
+  );
+}
