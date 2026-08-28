@@ -37,11 +37,19 @@ const BASE_POSE =
   'eyes toward the camera, calm neutral expression, hands resting near the desk.';
 
 const ARC_MOTION =
-  'The person watches attentively for a moment, then their eyes widen in a surprised ' +
-  'open-mouth wow reaction, then they settle back into attentive watching, and at the ' +
-  'end they nod approvingly with a satisfied smile. Sitting at a desk in a home office, ' +
-  'webcam style. Locked static camera, the background stays completely fixed and ' +
-  'unchanged, ONLY the person moves. Natural realistic motion, no text.';
+  'A natural reaction video of the person calmly watching a screen. For the first seconds ' +
+  'they watch attentively with subtle micro-movements: blinking, tiny head shifts. Then their ' +
+  'eyebrows raise and eyes widen gradually in genuine surprise, followed by an impressed ' +
+  'slight smile. They settle back into calm attentive watching, and near the end they nod ' +
+  'slowly in approval with a warm subtle smile, returning to the same calm watching pose as ' +
+  'the beginning. All transitions are slow, smooth and continuous. No sudden changes, no ' +
+  'exaggerated expressions, mouth stays mostly closed. Sitting at a desk in a home office, ' +
+  'webcam style. Locked static camera, the background stays completely fixed, only the ' +
+  'person moves. Photorealistic natural motion, no text.';
+
+const ARC_NEGATIVE =
+  'blur, distort, low quality, exaggerated facial expression, open mouth scream, jump cut, ' +
+  'sudden movement, camera movement, background change';
 
 interface GeminiResponse {
   candidates?: {
@@ -53,17 +61,21 @@ interface GeminiResponse {
 // fal.ai queue API: submete, faz polling e baixa o mp4 do loop
 async function animateExpression(imageUrl: string, motionPrompt: string): Promise<Buffer> {
   const headers = { Authorization: `Key ${env.FAL_KEY}`, 'Content-Type': 'application/json' };
+  // Parâmetros por família de modelo: Kling aceita duration 10s (arco com ritmo
+  // natural); wan trava em ~100 frames e precisa de aspect_ratio explícito
+  // (auto é rejeitado com retrato não-quadrado — validado ao vivo em 28/ago)
+  const input: Record<string, unknown> = { image_url: imageUrl, prompt: motionPrompt };
+  if (env.FAL_I2V_MODEL.includes('kling')) {
+    input.duration = '10';
+    input.negative_prompt = ARC_NEGATIVE;
+  } else {
+    input.aspect_ratio = '1:1';
+    input.resolution = '480p';
+  }
   const submitRes = await fetch(`https://queue.fal.run/${env.FAL_I2V_MODEL}`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({
-      image_url: imageUrl,
-      prompt: motionPrompt,
-      // aspect_ratio 'auto' é rejeitado quando o retrato não é exatamente quadrado
-      // (validado ao vivo em 28/ago); 480p basta pro medalhão de 260px e custa metade
-      aspect_ratio: '1:1',
-      resolution: '480p',
-    }),
+    body: JSON.stringify(input),
   });
   const submitted = (await submitRes.json().catch(() => ({}))) as {
     status_url?: string;
@@ -204,8 +216,8 @@ export async function generateAvatar(job: Job<GenerateAvatarJob>) {
       user_id: userId,
       event_type: 'avatar_generation',
       reference_id: avatarId,
-      // 1 imagem ~US$0,04 + (se animado) 1 vídeo 480p ~US$0,2
-      cost_usd: animate ? 0.25 : 0.05,
+      // 1 imagem ~US$0,04 + (se animado) 1 vídeo Kling 10s ~US$0,5
+      cost_usd: animate ? 0.55 : 0.05,
       metadata: {
         model: env.GEMINI_IMAGE_MODEL,
         style,

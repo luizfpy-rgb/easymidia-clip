@@ -162,8 +162,8 @@ export default function AvatarPage() {
       </form>
       <p className="text-xs text-mist/60 mb-8">
         Use uma foto de rosto bem iluminada, de frente. O clone sai sentado num home office
-        (cenário fixo, só ele se move) com um arco de reação completo: assistindo → surpreso →
-        assistindo → aprovando. ~US$ 0,25/avatar, pronto em ~3 min.
+        (cenário fixo, só ele se move) com um vídeo de reação de 10s, fluido e natural:
+        assistindo → surpresa gradual → aprovando. ~US$ 0,55/avatar, pronto em ~5 min.
       </p>
 
       {message && <p className="text-sm text-amber-400 mb-6">{message}</p>}
