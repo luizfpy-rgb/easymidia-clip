@@ -5,10 +5,9 @@ import { supabaseAdmin } from '../lib/supabase.js';
 import { uploadToR2 } from '../lib/r2.js';
 import { notifyFailure } from '../lib/notify.js';
 
-// Foto do usuário → 5 expressões via Gemini image (~US$ 0,04/imagem) e, com
-// FAL_KEY configurada, cada expressão vira um LOOP DE VÍDEO de reação via
-// image-to-video (~US$ 0,2-0,4/clipe) — o "clone reagindo" no medalhão.
-// A mesma foto vai em TODAS as chamadas pra manter a identidade do personagem.
+// Foto do usuário → 1 still base via Gemini (~US$0,04) e, com FAL_KEY, UM vídeo
+// com o arco de reação completo via image-to-video (~US$0,2) — assistindo →
+// surpreso → assistindo → aprovando, cenário fixo, rodando em loop no short.
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const STYLE_PROMPTS: Record<string, string> = {
@@ -28,40 +27,21 @@ const STYLE_PROMPTS: Record<string, string> = {
     'skin tone and distinctive features. No text, no watermark.',
 };
 
-// Mesmo vocabulário do expression_timeline (analyze-clips).
-// 'watching' é o estado-base do template Reação: o dublê olhando PRA CIMA,
-// na direção do vídeo que roda acima dele no split.
-const EXPRESSIONS: Record<string, string> = {
-  watching:
-    'The person is attentively watching a screen located above them: chin slightly raised, ' +
-    'eyes looking up and a bit off-camera, engaged and curious viewing posture.',
-  idle: 'Neutral, friendly and relaxed expression, slight natural smile.',
-  curious: 'Curious expression: one raised eyebrow, slight head tilt, intrigued eyes.',
-  impressed: 'Impressed expression: wide eyes and open-mouth "wow" reaction.',
-  approved: 'Approving expression: confident smile, giving a thumbs up.',
-  analytical: 'Analytical expression: thoughtful look, hand on chin, focused eyes.',
-  laughing: 'Laughing expression: genuine laugh, eyes squinting with joy, big smile.',
-  shocked: 'Shocked expression: jaw dropped, hands near the face, wide unbelieving eyes.',
-  agreeing: 'Agreeing expression: warm convinced smile, head slightly tilted forward.',
-};
+// "1 card" (pedido do usuário em 28/ago): em vez de várias expressões geradas
+// separadas (cada uma sorteava um cenário diferente → cortes estranhos), UM
+// único vídeo com arco de reação completo, cenário 100% travado, só o clone
+// se movendo. O arco roda em loop no short. As chaves watching/idle apontam
+// pro mesmo arquivo — tanto o template clássico quanto o Reação resolvem.
+const BASE_POSE =
+  'The person is attentively watching a screen: engaged and curious viewing posture, ' +
+  'eyes toward the camera, calm neutral expression, hands resting near the desk.';
 
-// Movimento do loop de reação (image-to-video). Câmera parada + movimento
-// sutil = loop que não cansa repetindo no canto do short.
-const MOTION_SUFFIX =
-  ' The person is sitting at a desk in a home office, webcam style. Static camera, ' +
-  'natural subtle motion, background unchanged, seamless loop, no text.';
-const MOTIONS: Record<string, string> = {
-  watching:
-    'The person keeps watching a screen above them, eyes up, breathing naturally, blinking, small attentive head movements.' + MOTION_SUFFIX,
-  idle: 'The person breathes naturally, blinks and makes calm micro-movements, looking at the camera.' + MOTION_SUFFIX,
-  curious: 'The person raises an eyebrow and tilts the head slightly with an intrigued look.' + MOTION_SUFFIX,
-  impressed: 'The person reacts impressed: eyes widen and mouth opens in a wow reaction.' + MOTION_SUFFIX,
-  approved: 'The person nods approvingly, smiles and gives a thumbs up.' + MOTION_SUFFIX,
-  analytical: 'The person looks thoughtful, touches the chin and glances up briefly.' + MOTION_SUFFIX,
-  laughing: 'The person bursts into a genuine laugh, shoulders shaking slightly, eyes squinting.' + MOTION_SUFFIX,
-  shocked: 'The person reacts in disbelief: jaw drops, brings a hand near the face, leans back slightly.' + MOTION_SUFFIX,
-  agreeing: 'The person nods along repeatedly in agreement with a convinced smile.' + MOTION_SUFFIX,
-};
+const ARC_MOTION =
+  'The person watches attentively for a moment, then their eyes widen in a surprised ' +
+  'open-mouth wow reaction, then they settle back into attentive watching, and at the ' +
+  'end they nod approvingly with a satisfied smile. Sitting at a desk in a home office, ' +
+  'webcam style. Locked static camera, the background stays completely fixed and ' +
+  'unchanged, ONLY the person moves. Natural realistic motion, no text.';
 
 interface GeminiResponse {
   candidates?: {
@@ -198,19 +178,22 @@ export async function generateAvatar(job: Job<GenerateAvatarJob>) {
     const stylePrompt = STYLE_PROMPTS[style] ?? STYLE_PROMPTS.cartoon;
     const animate = Boolean(env.FAL_KEY);
 
-    const expressions: Record<string, string> = {};
-    for (const [name, prompt] of Object.entries(EXPRESSIONS)) {
-      const image = await generateExpression(sourceBase64, stylePrompt, prompt);
-      const stillUrl = await uploadToR2(`${prefix}/${name}.png`, image, 'image/png');
-      expressions[name] = stillUrl;
-      if (animate) {
-        // Clone reagindo: anima o retrato em loop de vídeo (o render detecta .mp4)
-        const loop = await animateExpression(stillUrl, MOTIONS[name] ?? MOTIONS.idle);
-        expressions[name] = await uploadToR2(`${prefix}/${name}.mp4`, loop, 'video/mp4');
-      }
-      // Progresso parcial visível na UI (expressões aparecem uma a uma)
-      await supabaseAdmin.from('avatars').update({ expressions }).eq('id', avatarId);
+    // 1 card: um still base (assistindo, cenário do escritório) + UM vídeo com o
+    // arco completo de reação — cenário idêntico do início ao fim por construção.
+    const still = await generateExpression(sourceBase64, stylePrompt, BASE_POSE);
+    const stillUrl = await uploadToR2(`${prefix}/base.png`, still, 'image/png');
+    // Progresso parcial: o still aparece na UI enquanto o vídeo gera
+    await supabaseAdmin
+      .from('avatars')
+      .update({ expressions: { watching: stillUrl, idle: stillUrl } })
+      .eq('id', avatarId);
+
+    let mediaUrl = stillUrl;
+    if (animate) {
+      const arc = await animateExpression(stillUrl, ARC_MOTION);
+      mediaUrl = await uploadToR2(`${prefix}/reaction.mp4`, arc, 'video/mp4');
     }
+    const expressions: Record<string, string> = { watching: mediaUrl, idle: mediaUrl };
 
     await supabaseAdmin
       .from('avatars')
@@ -221,14 +204,14 @@ export async function generateAvatar(job: Job<GenerateAvatarJob>) {
       user_id: userId,
       event_type: 'avatar_generation',
       reference_id: avatarId,
-      // 8 imagens × ~US$0,04 + (se animado) 8 loops 480p × ~US$0,2
-      cost_usd: animate ? 1.9 : 0.32,
+      // 1 imagem ~US$0,04 + (se animado) 1 vídeo 480p ~US$0,2
+      cost_usd: animate ? 0.25 : 0.05,
       metadata: {
         model: env.GEMINI_IMAGE_MODEL,
         style,
         animated: animate,
         i2v_model: animate ? env.FAL_I2V_MODEL : null,
-        expressions: Object.keys(expressions).length,
+        mode: 'single-arc',
       },
     });
   } catch (err) {

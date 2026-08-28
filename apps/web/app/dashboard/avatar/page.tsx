@@ -16,6 +16,7 @@ interface Avatar {
 
 const EXPRESSION_LABEL: Record<string, string> = {
   idle: 'Neutro',
+  watching: 'Reação',
   curious: 'Curioso',
   impressed: 'Impressionado',
   approved: 'Aprovando',
@@ -85,7 +86,7 @@ export default function AvatarPage() {
       setName('');
       setFile(null);
       if (fileInput.current) fileInput.current.value = '';
-      setMessage('Geração iniciada — as 5 expressões aparecem em ~2 minutos.');
+      setMessage('Geração iniciada — o vídeo de reação fica pronto em ~3 minutos.');
       await refresh();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Erro inesperado');
@@ -122,8 +123,8 @@ export default function AvatarPage() {
     <AppShell>
       <h1 className="text-xl font-bold mb-2">Avatar</h1>
       <p className="text-sm text-mist/60 mb-8 max-w-2xl">
-        O avatar aparece como um medalhão reagindo nos seus shorts, trocando de expressão
-        conforme a emoção do áudio. Envie uma foto e a IA gera as 5 expressões no seu estilo.
+        O avatar aparece reagindo nos seus shorts como um streamer de react. Envie uma foto
+        e a IA gera seu clone sentado num home office, com o vídeo de reação completo.
       </p>
 
       <form onSubmit={generate} className="flex gap-3 flex-wrap items-end max-w-2xl mb-4">
@@ -160,9 +161,9 @@ export default function AvatarPage() {
         </button>
       </form>
       <p className="text-xs text-mist/60 mb-8">
-        Use uma foto de rosto bem iluminada, de frente. São 8 reações (neutro, curioso,
-        impressionado, aprovando, analítico, rindo, chocado, concordando) — a IA escolhe qual
-        usar a cada frase do vídeo. Animado: ~US$ 2,70/avatar e ~15 min; estático: ~US$ 0,32.
+        Use uma foto de rosto bem iluminada, de frente. O clone sai sentado num home office
+        (cenário fixo, só ele se move) com um arco de reação completo: assistindo → surpreso →
+        assistindo → aprovando. ~US$ 0,25/avatar, pronto em ~3 min.
       </p>
 
       {message && <p className="text-sm text-amber-400 mb-6">{message}</p>}
@@ -194,9 +195,16 @@ export default function AvatarPage() {
 
         {avatars.map((a) => {
           const badge = STATUS_BADGE[a.status];
-          // Avatares antigos podem ter expressões com URL null — filtra antes de usar
+          // Avatares antigos podem ter expressões com URL null — filtra antes de usar.
+          // O modo "1 card" grava o MESMO vídeo em várias chaves — dedupe por URL.
+          const seenUrls = new Set<string>();
           const exprs = Object.entries(a.expressions ?? {}).filter(
-            (entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].length > 0
+            (entry): entry is [string, string] => {
+              if (typeof entry[1] !== 'string' || entry[1].length === 0) return false;
+              if (seenUrls.has(entry[1])) return false;
+              seenUrls.add(entry[1]);
+              return true;
+            }
           );
           const animated = exprs.some(([, url]) => url.endsWith('.mp4'));
           return (
