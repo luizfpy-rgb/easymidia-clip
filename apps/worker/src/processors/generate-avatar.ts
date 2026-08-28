@@ -12,12 +12,15 @@ import { notifyFailure } from '../lib/notify.js';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const STYLE_PROMPTS: Record<string, string> = {
+  // Visual "streamer de react": sentado na mesa do escritório, enquadramento de
+  // webcam — natural, não retrato de estúdio (pedido do usuário em 28/ago)
   realistic:
-    'Create an ultra-realistic portrait photograph of the exact same person from this photo. ' +
-    'Head and shoulders only, centered, square 1:1 composition, facing the camera. Natural skin ' +
-    'texture, soft studio lighting, deep purple background (#1A1327) with a subtle violet glow. ' +
-    'Preserve the exact identity, hairstyle, skin tone and distinctive features. Photorealistic, ' +
-    'DSLR quality. No text, no watermark.',
+    'Create an ultra-realistic photograph of the exact same person from this photo, sitting at ' +
+    'a desk in a cozy home office, filmed webcam-style like a reaction streamer. Head and ' +
+    'shoulders, centered, square 1:1 composition. Natural indoor lighting, softly blurred home ' +
+    'office background (desk, shelves, warm lamp glow, a hint of monitor light). Casual relaxed ' +
+    'posture. Preserve the exact identity, hairstyle, skin tone and distinctive features. ' +
+    'Photorealistic, natural skin texture, webcam framing. No text, no watermark.',
   cartoon:
     'Create a stylized 3D animated-movie style character portrait based on the person in this photo. ' +
     'Head and shoulders only, centered, square 1:1 composition. Deep purple studio background (#1A1327) ' +
@@ -25,8 +28,13 @@ const STYLE_PROMPTS: Record<string, string> = {
     'skin tone and distinctive features. No text, no watermark.',
 };
 
-// Mesmo vocabulário do expression_timeline (analyze-clips)
+// Mesmo vocabulário do expression_timeline (analyze-clips).
+// 'watching' é o estado-base do template Reação: o dublê olhando PRA CIMA,
+// na direção do vídeo que roda acima dele no split.
 const EXPRESSIONS: Record<string, string> = {
+  watching:
+    'The person is attentively watching a screen located above them: chin slightly raised, ' +
+    'eyes looking up and a bit off-camera, engaged and curious viewing posture.',
   idle: 'Neutral, friendly and relaxed expression, slight natural smile.',
   curious: 'Curious expression: one raised eyebrow, slight head tilt, intrigued eyes.',
   impressed: 'Impressed expression: wide eyes and open-mouth "wow" reaction.',
@@ -40,8 +48,11 @@ const EXPRESSIONS: Record<string, string> = {
 // Movimento do loop de reação (image-to-video). Câmera parada + movimento
 // sutil = loop que não cansa repetindo no canto do short.
 const MOTION_SUFFIX =
-  ' Static camera, plain background, natural subtle motion, seamless loop, no text.';
+  ' The person is sitting at a desk in a home office, webcam style. Static camera, ' +
+  'natural subtle motion, background unchanged, seamless loop, no text.';
 const MOTIONS: Record<string, string> = {
+  watching:
+    'The person keeps watching a screen above them, eyes up, breathing naturally, blinking, small attentive head movements.' + MOTION_SUFFIX,
   idle: 'The person breathes naturally, blinks and makes calm micro-movements, looking at the camera.' + MOTION_SUFFIX,
   curious: 'The person raises an eyebrow and tilts the head slightly with an intrigued look.' + MOTION_SUFFIX,
   impressed: 'The person reacts impressed: eyes widen and mouth opens in a wow reaction.' + MOTION_SUFFIX,
