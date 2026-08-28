@@ -20,6 +20,9 @@ const EXPRESSION_LABEL: Record<string, string> = {
   impressed: 'Impressionado',
   approved: 'Aprovando',
   analytical: 'Analítico',
+  laughing: 'Rindo',
+  shocked: 'Chocado',
+  agreeing: 'Concordando',
 };
 
 const STATUS_BADGE: Record<Avatar['status'], { text: string; cls: string }> = {
@@ -157,9 +160,9 @@ export default function AvatarPage() {
         </button>
       </form>
       <p className="text-xs text-mist/60 mb-8">
-        Use uma foto de rosto bem iluminada, de frente. Com animação ligada, cada expressão
-        vira um loop de vídeo reagindo (~US$ 1,70/avatar; sem animação, ~US$ 0,20). A geração
-        animada leva ~10 min.
+        Use uma foto de rosto bem iluminada, de frente. São 8 reações (neutro, curioso,
+        impressionado, aprovando, analítico, rindo, chocado, concordando) — a IA escolhe qual
+        usar a cada frase do vídeo. Animado: ~US$ 2,70/avatar e ~15 min; estático: ~US$ 0,32.
       </p>
 
       {message && <p className="text-sm text-amber-400 mb-6">{message}</p>}

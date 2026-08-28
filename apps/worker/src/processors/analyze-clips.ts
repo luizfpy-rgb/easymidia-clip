@@ -8,7 +8,11 @@ import { anthropic, CLAUDE_MODEL, HAIKU_USD_PER_M_INPUT, HAIKU_USD_PER_M_OUTPUT 
 import type { TranscriptSegment } from '../lib/srt.js';
 import { notifyFailure } from '../lib/notify.js';
 
-const EXPRESSIONS = ['idle', 'curious', 'impressed', 'approved', 'analytical'] as const;
+// Vocabulário de reação do avatar (espelhado em generate-avatar.ts do worker)
+const EXPRESSIONS = [
+  'idle', 'curious', 'impressed', 'approved', 'analytical',
+  'laughing', 'shocked', 'agreeing',
+] as const;
 
 const ClipSchema = z.object({
   start_seconds: z.number(),
@@ -39,7 +43,14 @@ Regras:
 - start_seconds e end_seconds devem coincidir com limites de frases da transcrição.
 - caption: legenda pronta pra postagem, máximo 200 caracteres, em português.
 - hashtags: 3-6, sempre incluindo #Shorts.
-- expression_timeline: 2-3 trocas de expressão do avatar por trecho, alinhadas com a emoção do áudio (at_seconds relativo ao INÍCIO do trecho).
+- expression_timeline: o avatar é um ESPECTADOR reagindo ao vídeo em tempo real, como
+  num canal de react. Gere UMA entrada pra cada frase ou virada relevante do trecho
+  (6 a 12 entradas num trecho de 30-60s), com at_seconds relativo ao INÍCIO do trecho,
+  alinhado ao começo da frase que provoca a reação. Escolha a expressão pela reação
+  natural de quem OUVE aquilo naquele instante: piada → laughing; número/revelação
+  absurda → shocked ou impressed; afirmação forte → agreeing ou approved; suspense/
+  pergunta → curious; raciocínio/explicação → analytical; transições neutras → idle.
+  Varie as expressões — não repita a mesma em sequência.
 - reason: 2 linhas explicando por que o trecho tem potencial viral.`;
 
 function transcriptForPrompt(segments: TranscriptSegment[]): string {

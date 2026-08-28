@@ -25,13 +25,16 @@ const STYLE_PROMPTS: Record<string, string> = {
     'skin tone and distinctive features. No text, no watermark.',
 };
 
-// Mesmas 5 expressões do expression_timeline (analyze-clips)
+// Mesmo vocabulário do expression_timeline (analyze-clips)
 const EXPRESSIONS: Record<string, string> = {
   idle: 'Neutral, friendly and relaxed expression, slight natural smile.',
   curious: 'Curious expression: one raised eyebrow, slight head tilt, intrigued eyes.',
   impressed: 'Impressed expression: wide eyes and open-mouth "wow" reaction.',
   approved: 'Approving expression: confident smile, giving a thumbs up.',
   analytical: 'Analytical expression: thoughtful look, hand on chin, focused eyes.',
+  laughing: 'Laughing expression: genuine laugh, eyes squinting with joy, big smile.',
+  shocked: 'Shocked expression: jaw dropped, hands near the face, wide unbelieving eyes.',
+  agreeing: 'Agreeing expression: warm convinced smile, head slightly tilted forward.',
 };
 
 // Movimento do loop de reação (image-to-video). Câmera parada + movimento
@@ -44,6 +47,9 @@ const MOTIONS: Record<string, string> = {
   impressed: 'The person reacts impressed: eyes widen and mouth opens in a wow reaction.' + MOTION_SUFFIX,
   approved: 'The person nods approvingly, smiles and gives a thumbs up.' + MOTION_SUFFIX,
   analytical: 'The person looks thoughtful, touches the chin and glances up briefly.' + MOTION_SUFFIX,
+  laughing: 'The person bursts into a genuine laugh, shoulders shaking slightly, eyes squinting.' + MOTION_SUFFIX,
+  shocked: 'The person reacts in disbelief: jaw drops, brings a hand near the face, leans back slightly.' + MOTION_SUFFIX,
+  agreeing: 'The person nods along repeatedly in agreement with a convinced smile.' + MOTION_SUFFIX,
 };
 
 interface GeminiResponse {
@@ -190,8 +196,8 @@ export async function generateAvatar(job: Job<GenerateAvatarJob>) {
       user_id: userId,
       event_type: 'avatar_generation',
       reference_id: avatarId,
-      // 5 imagens × ~US$0,04 + (se animado) 5 loops × ~US$0,3
-      cost_usd: animate ? 1.7 : 0.2,
+      // 8 imagens × ~US$0,04 + (se animado) 8 loops × ~US$0,3
+      cost_usd: animate ? 2.7 : 0.32,
       metadata: {
         model: env.GEMINI_IMAGE_MODEL,
         style,
