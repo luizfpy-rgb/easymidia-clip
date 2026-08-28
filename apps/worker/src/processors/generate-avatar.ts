@@ -65,7 +65,14 @@ async function animateExpression(imageUrl: string, motionPrompt: string): Promis
   const submitRes = await fetch(`https://queue.fal.run/${env.FAL_I2V_MODEL}`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ image_url: imageUrl, prompt: motionPrompt }),
+    body: JSON.stringify({
+      image_url: imageUrl,
+      prompt: motionPrompt,
+      // aspect_ratio 'auto' é rejeitado quando o retrato não é exatamente quadrado
+      // (validado ao vivo em 28/ago); 480p basta pro medalhão de 260px e custa metade
+      aspect_ratio: '1:1',
+      resolution: '480p',
+    }),
   });
   const submitted = (await submitRes.json().catch(() => ({}))) as {
     status_url?: string;
@@ -94,7 +101,10 @@ async function animateExpression(imageUrl: string, motionPrompt: string): Promis
   const out = (await (await fetch(submitted.response_url, { headers })).json()) as {
     video?: { url?: string };
   };
-  if (!out.video?.url) throw new Error('fal: resposta sem vídeo');
+  // fal pode devolver COMPLETED com erro de validação no corpo — expõe o detalhe
+  if (!out.video?.url) {
+    throw new Error(`fal: resposta sem vídeo — ${JSON.stringify(out).slice(0, 300)}`);
+  }
   const download = await fetch(out.video.url);
   if (!download.ok) throw new Error(`fal: download do vídeo → ${download.status}`);
   return Buffer.from(await download.arrayBuffer());
@@ -120,7 +130,11 @@ async function generateExpression(
           ],
         },
       ],
-      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+      generationConfig: {
+        responseModalities: ['TEXT', 'IMAGE'],
+        // Sem isso o retrato pode sair 816x1120 mesmo pedindo "square 1:1" no prompt
+        imageConfig: { aspectRatio: '1:1' },
+      },
     }),
   });
   const body = (await res.json().catch(() => ({}))) as GeminiResponse;
@@ -196,8 +210,8 @@ export async function generateAvatar(job: Job<GenerateAvatarJob>) {
       user_id: userId,
       event_type: 'avatar_generation',
       reference_id: avatarId,
-      // 8 imagens × ~US$0,04 + (se animado) 8 loops × ~US$0,3
-      cost_usd: animate ? 2.7 : 0.32,
+      // 8 imagens × ~US$0,04 + (se animado) 8 loops 480p × ~US$0,2
+      cost_usd: animate ? 1.9 : 0.32,
       metadata: {
         model: env.GEMINI_IMAGE_MODEL,
         style,
