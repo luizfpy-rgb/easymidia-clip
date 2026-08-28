@@ -9,3 +9,5 @@ dist/
 cookies.txt
 assets-local/
 deploy-env/
+
+worker-local*.log
