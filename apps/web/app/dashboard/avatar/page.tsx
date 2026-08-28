@@ -194,7 +194,10 @@ export default function AvatarPage() {
 
         {avatars.map((a) => {
           const badge = STATUS_BADGE[a.status];
-          const exprs = Object.entries(a.expressions ?? {});
+          // Avatares antigos podem ter expressões com URL null — filtra antes de usar
+          const exprs = Object.entries(a.expressions ?? {}).filter(
+            (entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].length > 0
+          );
           const animated = exprs.some(([, url]) => url.endsWith('.mp4'));
           return (
             <div
